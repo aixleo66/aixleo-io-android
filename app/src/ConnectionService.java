@@ -21,7 +21,7 @@ public final class ConnectionService extends Service {
     private static Notification notification(Context context,String title,String text){
         PendingIntent open = PendingIntent.getActivity(context, 0, new Intent(context, CloudActivity.class), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new Notification.Builder(context, "glasses_connection")
-            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setContentTitle("雷鸟眼镜连接中")
+            .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth).setContentTitle("Aixleo iO · 眼镜连接中")
             .setContentTitle(title).setContentText(text)
             .setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true).build();
     }

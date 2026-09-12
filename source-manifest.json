@@ -3,7 +3,7 @@
   "status": "source_review_not_release",
   "apk_included": false,
   "source_sha256": {
-    "app/AndroidManifest.xml": "df5f0e445e0a29daba0baa831bfaa5c83dfef38ee5226aa294047db6757cd072",
+    "app/AndroidManifest.xml": "0d6a60d8efd883ae3d57d96e12e040b6772dab94962287f0cd5b3a72d4011ccb",
     "app/lib/Java-WebSocket-1.5.6.jar": "ba2c5b646e115c6a9aa923139a154cbcdbf136b2b5c82bf423b1433639e0d83b",
     "app/lib/Java-WebSocket-LICENSE.txt": "15101a7cbdaa7f1c161424b760e907e7832e4a1e7f05d03373ca91fbffdb95ee",
     "app/lib/SLF4J-LICENSE.txt": "6fbe2eaf44b193b8a40eed9208f52848572224ad8d7672dd09418aa174847e73",
@@ -19,8 +19,8 @@
     "app/src/CloudConfig.java": "e157fe9bb749a728252f44b3af4cfd9fa1b2b657bbd6c21206913c000cf37f81",
     "app/src/CloudPipeline.java": "deefedcb310838f5b99e0e814d45aace522613a1e712e3ea24febfc7b5ccacb4",
     "app/src/CommandWait.java": "4e99275ddf9b820c6600915ea1cbf9cb12f2ee26b26b6bb9a187ee60504557c0",
-    "app/src/CompanionShell.java": "2c03fb412f021f318c62308b3d4509ae57fa43f5edc40900231b758b551aa1e5",
-    "app/src/ConnectionService.java": "8cf35da106daed7c4c1a2bd5cd334b2c6741229fe360ca8564d5a7998d01e1c4",
+    "app/src/CompanionShell.java": "d46d3adbe44b4c0e230f5aa7d4dae6aadf5ab6130f719c748bafa281b0f37123",
+    "app/src/ConnectionService.java": "904aef37d1ee0326b7ab2a49d3c8979e059bc3d8fa7b7be011e94a6ddca33839",
     "app/src/GlassesRecorder.java": "7a5a88954ac4cd5828be6f57114271e8ccb9e5dea315a05c17169ed512bef109",
     "app/src/KnowledgeClient.java": "b869e0efe3cdb14f80de38e4ed9dafc35a8a0d3032d74213caf72d5a88815f3d",
     "app/src/KnowledgeRunState.java": "2fabcf5317b89bb3e9842638cb36b8d5c4b56bdb00c2c9eeb109d4a643c0d177",
@@ -91,7 +91,7 @@
     "toolchain.lock.json": "427b82dcf688f6a88417332e3bc909bea352f7c4b482d52d784d44d69a118beb",
     "verify_source.py": "87a0b476f9f5398d0e9c501ece86c642cff6b4d14139544584e3c1fbb397dae3"
   },
-  "verified_local_apk_sha256": "cab7d659c45a0012de51339eafb55cb39b88112f1dc5b6bbf1d8594210e902cb",
+  "verified_local_apk_sha256": "b607d7452e22a4b642494c0a190525955395a79579b0079fe7f5a810398aa98e",
   "vendor_payload_sha256": "d1d54046ed811e0bfb965f30a051a5bd4f3342760c3c69cc3aaca32424860f9f",
   "device_regression_completed": false,
   "vendor_redistribution_authorization_verified": false,
@@ -117,5 +117,14 @@
     "F4": "implemented; host regression passed; device regression pending",
     "F5": "documentation corrected; API31 connection guard retained; API29 installation minimum unchanged",
     "D1": "Git-blob verification tool and EOL/commit regression tests added"
+  },
+  "project_name": "Aixleo iO Android",
+  "repository": "https://github.com/aixleo66/aixleo-io-android",
+  "branding_change": {
+    "date": "2026-09-12",
+    "scope": "project/app display names and repository links; application ID and protocol unchanged",
+    "automated_tests_passed": 59,
+    "build_verified": true,
+    "device_tested": false
   }
 }

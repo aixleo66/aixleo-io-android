@@ -25,7 +25,7 @@ final class CompanionShell {
             v.setPadding(safe.left,safe.top,safe.right,safe.bottom); return insets;
         });
         LinearLayout header=new LinearLayout(activity); header.setGravity(Gravity.CENTER_VERTICAL); header.setPadding(dp(22),dp(12),dp(22),dp(10));
-        TextView brand=text("雷鸟 iO",20); brand.setTypeface(null,Typeface.BOLD); header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
+        TextView brand=text("Aixleo iO",20); brand.setTypeface(null,Typeface.BOLD); header.addView(brand,new LinearLayout.LayoutParams(0,-2,1));
         TextView version=text("预览版",12); version.setTextColor(MUTED); header.addView(version); frame.addView(header);
         connection=text("正在读取连接状态…",13); connection.setTextColor(MUTED); connection.setPadding(dp(22),0,dp(22),dp(10)); frame.addView(connection);
         content=new FrameLayout(activity); frame.addView(content,new LinearLayout.LayoutParams(-1,0,1));

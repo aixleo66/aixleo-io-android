@@ -4,7 +4,9 @@
 
 > This page describes features and usage boundaries on the current branch; it does not establish device acceptance of every feature at the current commit. See the [audit index](AUDIT.md) for version-specific completed and pending checks, the [changelog](CHANGELOG.md) for version differences, and [security](SECURITY.md) for debug capabilities and limits.
 
-# RayNeo iO Android Companion — unofficial Android SDK research
+# Aixleo iO Android
+
+An unofficial Android companion app and experimental SDK for RayNeo iO.
 
 An interoperability research project for developers, with an Android companion app for exploring glasses connectivity, voice input, text display, recording, and phone notification forwarding.
 
@@ -69,7 +71,7 @@ This project is developed and tested incrementally by the maintainer in collabor
 
 Previous device experiments have demonstrated the core connection, voice Q&A, recording, and notification workflows. This does not mean every interaction detail or failure scenario is complete; logic errors may remain. We are conducting focused tests of these details while continuing to iterate on features. See [audit records](AUDIT.md) for automated checks and device validation of new changes. A code fix does not mean every scenario has passed.
 
-If you encounter a bug, compatibility issue, or documentation gap, or have a feature suggestion, please open a [GitHub Issue](https://github.com/aixleo66/rayneo-io-android/issues). If you already have another way to contact the maintainer, you are welcome to reach out directly.
+If you encounter a bug, compatibility issue, or documentation gap, or have a feature suggestion, please open a [GitHub Issue](https://github.com/aixleo66/aixleo-io-android/issues). If you already have another way to contact the maintainer, you are welcome to reach out directly.
 
 When reporting a problem, include the project version or commit, device model, OS version, firmware if available, reproduction steps, expected and actual results, and redacted logs where possible. Do not submit keys, recordings, complete notifications, or other people's information. Code and documentation contributions should identify their sources and applicable licenses.
 

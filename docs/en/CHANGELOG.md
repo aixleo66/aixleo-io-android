@@ -6,7 +6,11 @@ Records changes relevant to users. A source-preview version is not a published G
 
 ## Unreleased
 
-No additional entries beyond the source preview below are recorded yet.
+- Renamed the project to **Aixleo iO Android** and the repository to `aixleo-io-android`, preserving commit history.
+- Updated the app display name, overview titles, and repository links. Device names, Turbo-IO attribution, vendor provenance, and licensing notices are retained.
+- The Android application ID, signing mechanism, and storage paths are unchanged. This change has not been installed on a phone and adds no device validation claims.
+
+- After renaming, all 59 existing automated tests and build/signature/alignment checks passed; the source manifest was updated.
 
 ## 0.14 interaction-fix source preview — 2026-09-12
 
