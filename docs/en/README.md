@@ -63,7 +63,13 @@ See [compatibility](COMPATIBILITY.md), [testing](TESTING.md), [observer instruct
 
 The code is still centered on the Android sample app. Future work will separate connection/transport, sessions, recording, display, and model adapters so that more logic can be tested independently. This planned modularization is not a completed AAR SDK.
 
-Contributions should include device and OS models, firmware if available, reproduction steps, and redacted logs. Do not submit keys, recordings, complete notifications, or other people's information. Identify sources and applicable licenses.
+## Development approach and feedback
+
+This project is developed and tested incrementally by the maintainer in collaboration with Codex, using a vibe coding approach. The code, documentation, and test coverage may contain bugs or omissions. Feedback from people using the project helps identify and improve them.
+
+If you encounter a bug, compatibility issue, or documentation gap, or have a feature suggestion, please open a [GitHub Issue](https://github.com/aixleo66/rayneo-io-android/issues). If you already have another way to contact the maintainer, you are welcome to reach out directly.
+
+When reporting a problem, include the project version or commit, device model, OS version, firmware if available, reproduction steps, expected and actual results, and redacted logs where possible. Do not submit keys, recordings, complete notifications, or other people's information. Code and documentation contributions should identify their sources and applicable licenses.
 
 ## License and third-party rights
 

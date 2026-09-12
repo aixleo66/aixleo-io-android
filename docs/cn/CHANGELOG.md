@@ -8,6 +8,7 @@
 
 ### 文档
 
+- 说明项目与 Codex 协作的 vibe coding 开发方式，并提供问题反馈入口。
 - 提供 `docs/cn` 与 `docs/en` 中英文文档，默认中文，保留旧链接入口。
 - 将通用指南与版本验收分开；归档带日期的审核记录，集中维护验证索引。
 - 明确 Gateway 仅含 Android 实验性适配，不附 Rokid Harness 服务端。

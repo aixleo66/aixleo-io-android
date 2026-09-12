@@ -8,6 +8,7 @@ Records changes relevant to users. A source-preview version is not a published G
 
 ### Documentation
 
+- Describe the vibe coding development approach in collaboration with Codex and provide a feedback entry point.
 - Provide Chinese and English documentation in `docs/cn` and `docs/en`, with Chinese as the default and legacy entry links preserved.
 - Separate reusable guides from version acceptance; archive dated audits and centralize the validation index.
 - Clarify that Gateway includes only the experimental Android adapter, without the Rokid Harness server.
