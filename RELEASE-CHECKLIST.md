@@ -1,4 +1,4 @@
-# 分发范围与版本交付检查 / Delivery checks
+# 发布检查清单（维护者） / Release checklist (maintainers)
 
 文档按语言整理，默认中文。Documentation is available in both languages.
 

@@ -1,85 +1,59 @@
 [简体中文](../cn/README.md) | [English](README.md)
 
-> Noncommercial research source preview. Includes source code, pinned vendor dependencies, documentation, and build/tests; no prebuilt APK is currently included. Permission to redistribute vendor components has not been verified; a noncommercial purpose does not replace permission.
-
-> This page describes features and usage boundaries on the current branch; it does not establish device acceptance of every feature at the current commit. See the [audit index](AUDIT.md) for version-specific completed and pending checks, the [changelog](CHANGELOG.md) for version differences, and [security](SECURITY.md) for debug capabilities and limits.
-
 # Aixleo iO Android
 
-An unofficial Android companion app and experimental SDK for RayNeo iO.
+**An unofficial Android SDK for RayNeo iO, with an Android example app you can build yourself.** It gives developers a starting point to explore glasses recording, voice assistants, text display, and phone notifications.
 
-An interoperability research project for developers, with an Android companion app for exploring glasses connectivity, voice input, text display, recording, and phone notification forwarding.
+The project draws on the iOS implementation and research documentation of [Turbo1123/Turbo-IO](https://github.com/Turbo1123/Turbo-IO). Thanks to its author and contributors for sharing their work. The Android implementation is maintained separately; see [provenance and attribution](PROVENANCE.md) for the reference relationships.
 
-**Acknowledgment:** Development references the iOS implementation and research documentation of [Turbo1123/Turbo-IO](https://github.com/Turbo1123/Turbo-IO), including device communication and sessions, voice assistant interaction, recording, and display observation. We thank the author and contributors. This is a separately maintained Android implementation, not an official Android port released or endorsed by the Turbo IO author. We do not claim that every implementation is independently original. See [provenance](PROVENANCE.md) for references, adaptations, and licensing scope.
+This is experimental software. SDK interfaces are not stable, the code is still centered on the example app, and no standalone AAR is available yet. The project is not affiliated with or endorsed by RayNeo or the Turbo-IO author. It is intended for noncommercial research and learning.
 
-**This project is not affiliated with, sponsored by, or endorsed by RayNeo or its related companies.** RayNeo / 雷鸟 iO names identify the compatible device. This is an experimental project, not a stable standalone SDK API or a complete replacement for the official app.
+## Implemented features
 
-Users need Android development and debugging experience, their own toolchain, signing key, and service configuration. Device communication still depends on a specific version of vendor code. Vendor and original code have separate licensing scopes; see [building](BUILDING.md) and [third-party notices](THIRD_PARTY_NOTICES.md).
-
-The source preview includes `vendor/rayneo-venus-1.0.2-68/vendor-payload.jar`, containing three unmodified official DEX files and two coroutine service declarations. Their origin is identified separately; they are not claimed as original work or licensed by this project's root license. The repository excludes prebuilt APKs, the complete official APK, private signing keys, service credentials, and user data.
-
-**The pinned vendor dependency is included; users do not need to extract it again.** Build your selected commit with your own toolchain and signing key before installing it. This is not an implementation independent of vendor code, and compatibility with other dependency versions is not guaranteed. See [build and setup instructions](BUILDING.md).
-
-## Features and historical validation
-
-The table summarizes implemented features and limitations. See [compatibility records](COMPATIBILITY.md) for the versions and devices associated with real-device evidence, and the [audit index](AUDIT.md) for validation status. Historical passes do not automatically cover subsequent changes.
-
-| Feature | Status and limits |
+| Feature | Description |
 | --- | --- |
-| Device connection | Pairing and authentication on owned devices; reconnecting to a saved device; opening the app attempts connection and voice standby |
-| Glasses voice assistant | Glasses wake-up and microphone capture, streaming transcription displayed incrementally, model answers on the glasses; consecutive questions and screen-off use have historical device results |
-| Recording | Start/stop glasses recording from the phone; keep original data and a WAV, and play it on the phone; currently limited to five minutes per segment, with long-duration boundaries not fully validated |
-| Phone notifications | User-authorized forwarding from selected apps, with a distinct ID per notification; real Feishu notifications were verified; other apps need separate testing |
-| Experimental remote Q&A | Android connection adapter only; no Rokid Harness server. One exploratory way to connect to local Codex, without sufficient usability or reliability validation for this version; more flexible approaches are being explored |
-| Browser observer | Reads app protocol state over USB and redraws text; not a lens screenshot or complete historical archive |
+| Device connection | Pairing, authentication, and reconnection to a saved device; opening the app attempts connection and voice standby |
+| Glasses voice assistant | Captures audio from the glasses microphone, shows incremental transcription and model answers; consecutive questions and phone-screen-off Q&A have been demonstrated |
+| Recording | Start and stop glasses recording from the phone, save raw audio and WAV, and play it on the phone; currently limited to five minutes per recording |
+| Phone notifications | Select apps to forward after granting permission; each notification is displayed separately; Feishu notifications have been tested |
+| Browser observer | Reads app state over USB and redraws text sent to the glasses for development and debugging |
+| Experimental knowledge integration | Android Gateway adapter exploring access to computer-side Codex and knowledge bases; requires a separately provided compatible server, with stability still under testing |
 
-In this project, RayNeo iO is a microphone input and display device. It has no camera or speaker capability usable by this project. Configured external services perform ASR and model inference; the project does not run a large language model on the glasses.
+RayNeo iO provides microphone input and text display here. Recognition and Q&A run through external services you configure. The project uses no camera or speaker. The observer redraws protocol content; checking actual lens output still requires wearing the glasses.
+
+## Getting started
+
+Source code and build instructions are available; no prebuilt APK is currently provided. The repository includes the pinned vendor communication dependency needed for building, so you do not need to extract it again. See [third-party notices](THIRD_PARTY_NOTICES.md) for its version and provenance.
+
+1. Prepare RayNeo iO glasses, an Android 12 or newer phone, and a Windows x64 development environment. Follow [building and initial setup](BUILDING.md) to build and install the app. See [compatibility](COMPATIBILITY.md) for device, OS, and firmware coverage.
+2. Enter the glasses Bluetooth address in the app, grant permissions, and connect. Address entry is currently manual; there is no scan-and-select device list yet.
+3. Start with local recording. The voice assistant needs your own ASR and model service keys. Notification forwarding additionally requires notification access and app selection.
+
+When switching from the official app, unbinding may erase glasses data and perform a factory reset. Back up first and read the device prompts. Routine reconnection does not require repeated factory resets; avoid connecting two clients to the same glasses at once.
 
 ## Data and costs
 
-- Ordinary recordings stay on the phone by default; saving does not automatically upload them for transcription.
-- After a voice round is triggered, its audio goes to the configured ASR service. Valid recognized text goes to the selected Q&A service. Accidental wake-ups may also produce requests.
-- Standby does not continuously upload audio to ASR. A historical three-minute idle observation found no new recording, transcription, or model tasks; it does not establish zero power use or rule out accidental wake-ups.
-- Notification forwarding does not call a model. Notification text may appear on the glasses and in diagnostic previews.
-- Users supply their own keys and services and pay according to those services' terms. No shared quota or maintainer service account is included.
+- Ordinary recordings stay on the phone and are not automatically uploaded for transcription.
+- After waking, the voice assistant uploads audio to your configured ASR service and sends valid questions to your Q&A service. Real-time mode uploads during capture; accidental wake-ups can also incur calls.
+- Standby does not continuously upload ASR audio. Long-term power consumption and accidental wake-ups remain under testing.
+- Notification forwarding makes no model calls, but notification bodies may appear on the glasses and in the observer.
+- Cloud services use your own accounts and provider pricing. Cancellation cannot retract uploaded data and may not stop tasks already accepted remotely.
 
-See [permissions and privacy](PRIVACY.md).
+See [Privacy](PRIVACY.md) for data destinations and controls. The app is currently a debug build; see [Security](SECURITY.md) for ADB and observer access boundaries.
 
-## Before connecting
+## Development status and feedback
 
-Connect only devices you own or are explicitly authorized to use. Switching from the official app may require addressing an existing binding. Official unbinding may erase glasses data and restore factory settings; read the device prompt and back up first. Do not use factory reset for routine reconnection, or let two clients compete for the same device.
+The maintainer develops this project together with Codex through vibe coding. Core connection, voice Q&A, recording, and notification workflows have been demonstrated, but interaction details and error handling may still contain logic bugs. Focused testing and feature development are ongoing. You are welcome to build it, experiment, and share feedback.
 
-Install and launch from the phone app. `lab.py run --execute` rejects the legacy externally launched diagnostic path before installing or operating on a phone. Observer and command tools for an existing session may still read state, send messages, or call cloud services; read their parameters and effects first.
+Long recordings and the five-minute boundary, burst notification queues, sustained power use, and recovery after process termination or restart still need further testing. Other notification apps need individual verification. Firmware changes, a replacement native launcher, and arbitrary native UI rendering are outside the current feature set. See [test records](AUDIT.md) for results and the [changelog](CHANGELOG.md) for changes.
 
-## Current limitations
+For bugs, documentation gaps, and suggestions, open an [Issue](https://github.com/aixleo66/aixleo-io-android/issues), or use an existing contact channel with the maintainer. Include the version or commit, device and OS information, reproduction steps, and redacted logs. Do not upload keys, recordings, full notifications, or other personal data.
 
-- No glasses firmware modification, replacement launcher, or arbitrary native UI drawing.
-- No guarantee of automatic recovery after process termination, phone restart, or every disconnect.
-- No guarantee across all phones, firmware, long recordings, notification bursts, or offline transfer scenarios.
-- Cancelling the wait on the phone does not necessarily stop an already submitted remote model task.
-- No official historical-data migration, signing service, paid configuration service, or vendor service credentials.
+Next, we plan to separate connection, session, recording, display, and model adapters to make reuse in other Android projects easier.
 
-See [compatibility](COMPATIBILITY.md), [testing](TESTING.md), [observer instructions](OBSERVER.md), and the [experimental Gateway protocol and excluded server scope](GATEWAY.md).
+## License
 
-## Structure and development direction
-
-The code is still centered on the Android sample app. Future work will separate connection/transport, sessions, recording, display, and model adapters so that more logic can be tested independently. This planned modularization is not a completed AAR SDK.
-
-## Development approach and feedback
-
-This project is developed and tested incrementally by the maintainer in collaboration with Codex, using a vibe coding approach. The code, documentation, and test coverage may contain bugs or omissions. Feedback from people using the project helps identify and improve them.
-
-Previous device experiments have demonstrated the core connection, voice Q&A, recording, and notification workflows. This does not mean every interaction detail or failure scenario is complete; logic errors may remain. We are conducting focused tests of these details while continuing to iterate on features. See [audit records](AUDIT.md) for automated checks and device validation of new changes. A code fix does not mean every scenario has passed.
-
-If you encounter a bug, compatibility issue, or documentation gap, or have a feature suggestion, please open a [GitHub Issue](https://github.com/aixleo66/aixleo-io-android/issues). If you already have another way to contact the maintainer, you are welcome to reach out directly.
-
-When reporting a problem, include the project version or commit, device model, OS version, firmware if available, reproduction steps, expected and actual results, and redacted logs where possible. Do not submit keys, recordings, complete notifications, or other people's information. Code and documentation contributions should identify their sources and applicable licenses.
-
-## License and third-party rights
-
-Original contributions that the project has the right to license use PolyForm Noncommercial 1.0.0 for noncommercial learning, interoperability research, and exploration. The [root LICENSE](../../LICENSE) controls. Third-party content retains its own license; vendor components and trademarks do not change ownership through combined use. Do not describe the entire package as original or covered by the root license.
-
-See [licensing scope](LICENSING.md). A statement of purpose does not replace required permission, and including vendor components does not establish that their rights holders authorized redistribution.
+Original portions that this project has the right to license use [PolyForm Noncommercial 1.0.0](../../LICENSE). Third-party components retain their respective licenses; vendor components are not covered by the root license. See [Licensing](LICENSING.md) for the scope and dependency authorization status.
 
 ## Documentation index
 
@@ -90,8 +64,8 @@ See [licensing scope](LICENSING.md). A statement of purpose does not replace req
 - [Experimental Gateway protocol](GATEWAY.md)
 - [Permissions and privacy](PRIVACY.md)
 - [Security status](SECURITY.md)
-- [Independent audit record](AUDIT.md)
-- [Source preview scope](RELEASE-CHECKLIST.md)
+- [Test and audit records](AUDIT.md)
+- [Release checklist (maintainers)](RELEASE-CHECKLIST.md)
 - [Provenance and attribution](PROVENANCE.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Licensing scope](LICENSING.md)

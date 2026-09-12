@@ -13,6 +13,6 @@
 - Java-WebSocket、SLF4J 等依赖保留各自 MIT 许可和版权通知。
 - 厂商商标、用户数据及外部服务。
 
-third-party/Turbo-IO/LICENSE 保留上游许可原文；参考关系见 [来源记录](PROVENANCE.md)。逐文件审查尚未完成，不能将初步来源表宣称为最终权属结论。当前源码预览不附安装包；自行构建产生的 APK 仍含厂商依赖，不代表维护者能对其中所有内容授予相同权利。
+`third-party/Turbo-IO/LICENSE` 保留上游许可原文；参考关系见[来源记录](PROVENANCE.md)。完整逐文件权属审查仍在进行中。自行构建的 APK 包含厂商依赖，各部分分别适用其许可与权利范围。
 
 非商业用途、原样打包和注明来源均不能替代第三方所需授权。[上游许可说明](https://github.com/Turbo1123/Turbo-IO/blob/main/docs/LICENSING.md)；[PolyForm 原文](https://polyformproject.org/licenses/noncommercial/1.0.0)。

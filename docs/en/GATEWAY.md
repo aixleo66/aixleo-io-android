@@ -8,11 +8,11 @@ This protocol comes from **Rokid Local Harness Bridge** (`rokid-local-harness-br
 
 **The repository does not contain the Rokid Harness project or its server implementation.** It retains only the experimental Android compatibility client (`KnowledgeClient.java`, `KnowledgeRunState.java`) and related configuration. The computer-side Gateway, Codex invocation adapter, knowledge retrieval service, tunnel launch scripts, and deployment configuration are not included.
 
-This integration remains experimental. Historical experiments do not establish sufficient usability or stability validation of the current commit; see the [audit index](AUDIT.md) for recorded results. Historical development connection/Q&A attempts are not full acceptance of a deployable service. The contract below documents the existing client; it does not promise a delivered or validated Harness server. You can skip this experimental feature and configure a separate model service. Recording and notifications do not require Rokid Harness.
+Usability and stability are still under testing. This interface is intended for experiments by developers comfortable building a server. You can skip knowledge integration and configure a model service directly; recording and notifications do not depend on Rokid Harness. See [test records](AUDIT.md) for existing results.
 
 ## Existing client protocol
 
-The repository contains the Android client only, with no computer-side Gateway, knowledge base, or Codex runtime. This is the dedicated `rokid-harness.v1` WebSocket protocol, not an arbitrary OpenAI-compatible HTTP API. The implementation in `app/src/KnowledgeClient.java` and `KnowledgeRunState.java` is authoritative.
+The client uses the `rokid-harness.v1` WebSocket protocol and requires a compatible server. A standard OpenAI-compatible HTTP endpoint will not work. See `app/src/KnowledgeClient.java` and `KnowledgeRunState.java` for the implementation.
 
 Configure `wss://your-domain/service-path` and a separate token. The client rejects non-WSS URLs, query strings, userinfo, and fragments. Put the token in the connection's `hello` message, not the URL. If a temporary tunnel changes domain, update the configuration. The server is responsible for authentication and actual access controls.
 

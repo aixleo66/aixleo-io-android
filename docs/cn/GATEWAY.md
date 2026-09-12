@@ -8,11 +8,11 @@
 
 **仓库不包含 Rokid Harness 工程或其服务端实现。** 仓库仅保留 Android 侧的实验性兼容客户端（`KnowledgeClient.java`、`KnowledgeRunState.java`）及相关配置。电脑端 Gateway、Codex 调用适配、知识库检索服务、隧道启动脚本和部署配置均未随本仓库提供。
 
-该接入方案仍为实验性能力，不能将历史试验当作当前提交充分的可用性与稳定性验证；具体结果见[审核索引](AUDIT.md)。历史开发中的连接、问答尝试不等于可供使用者直接部署的完整验收；下文只是现有客户端的协议参考，不构成已交付或已验证的 Harness 服务承诺。可以跳过这项实验功能，使用独立的模型服务配置；录音、通知等功能不要求部署 Rokid Harness。
+这个接口的可用性与稳定性仍在测试，适合有服务端开发经验的使用者自行实验。也可以跳过知识库接入，直接配置模型服务；录音和通知不依赖 Rokid Harness。已有测试结果见[测试记录](AUDIT.md)。
 
 ## 现有客户端协议
 
-本包只有 Android 客户端，没有附带电脑端 Gateway、知识库或 Codex 运行环境。此接口是 `rokid-harness.v1` 专用 WebSocket 协议，不能填任意 OpenAI 兼容 HTTP 地址代替。行为以 `app/src/KnowledgeClient.java` 和 `KnowledgeRunState.java` 为准。
+客户端使用 `rokid-harness.v1` WebSocket 协议，需要兼容的服务端，不能用普通 OpenAI 兼容 HTTP 地址代替。实现见 `app/src/KnowledgeClient.java` 和 `KnowledgeRunState.java`。
 
 配置 `wss://你的域名/服务路径` 和独立 Token。客户端拒绝非 WSS、URL query、userinfo 与 fragment；Token 放在连接后的 hello 消息中，不放 URL。临时隧道更换域名后须更新配置；服务端负责认证及实际访问权限。
 

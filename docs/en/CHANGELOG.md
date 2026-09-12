@@ -2,9 +2,11 @@
 
 # Changelog
 
-Records changes relevant to users. A source-preview version is not a published GitHub Release. See the [audit index](AUDIT.md) for validation evidence and [documentation maintenance](DOCUMENTATION.md) for the process.
+This page records features, fixes, and changes to usage. See [test records](AUDIT.md) for version-specific results.
 
 ## Unreleased
+
+- Rewrote the project introduction for users and simplified repeated audit wording in building, privacy, Gateway, and testing guides. Licensing details and maintenance procedures remain in their dedicated documents; Chinese and English are updated together.
 
 - Renamed the project to **Aixleo iO Android** and the repository to `aixleo-io-android`, preserving commit history.
 - Updated the app display name, overview titles, and repository links. Device names, Turbo-IO attribution, vendor provenance, and licensing notices are retained.

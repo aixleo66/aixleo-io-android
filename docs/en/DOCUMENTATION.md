@@ -37,6 +37,10 @@ Keep identical relative document paths under `docs/cn` and `docs/en`. When behav
 
 ## Each version iteration
 
-Normally, update the changelog, affected guides, applicable test records, and audit/compatibility indexes. Unchanged pages need no rewrite. The project does not copy its entire documentation for every minor version; use Git commits to read older documentation. If multiple incompatible versions are maintained later, consider release branches or a versioned documentation site. This does not mean creating tags or Releases now.
+Normally, update the changelog, affected guides, applicable test records, and audit/compatibility indexes. Unchanged pages need no rewrite. The project does not copy its entire documentation for every minor version; use Git commits to read older documentation. If multiple incompatible versions are maintained later, consider release branches or a versioned documentation site.
 
 References: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) centralizes unreleased changes; [Django's release process](https://docs.djangoproject.com/en/4.2/internals/release-process/) distinguishes maintenance of development and stable-version documentation. This project adopts a simpler process appropriate to its current size.
+
+## Audience and tone
+
+The README and user guides should lead with the purpose, features, procedures, and limitations that affect use. Keep licensing scope in licensing and third-party notices, test evidence in audit records, and release procedures in the maintainer checklist. Keep internal handoff instructions, approval steps, and repeated audit statements out of the project introduction.

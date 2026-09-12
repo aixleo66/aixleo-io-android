@@ -2,9 +2,9 @@
 
 # Provenance and Turbo IO attribution
 
-Development of this project drew on the iOS implementation and research documentation of [Turbo1123/Turbo-IO](https://github.com/Turbo1123/Turbo-IO). We thank its original author and contributors. This Android implementation is maintained separately. It does not imply upstream endorsement or broadly claim upstream research as original work of this project.
+This project draws on the iOS implementation and research documentation of [Turbo1123/Turbo-IO](https://github.com/Turbo1123/Turbo-IO). Thanks to its author and contributors. The Android implementation is maintained separately and has not received upstream endorsement.
 
-The local upstream baseline used for this source comparison is [`9382ec6791c70cb97546ffc0a08ca87bc3050746`](https://github.com/Turbo1123/Turbo-IO/tree/9382ec6791c70cb97546ffc0a08ca87bc3050746). This is the comparison baseline, not necessarily the first commit from which every reference was taken, nor evidence that every item has the same historical license.
+The upstream baseline used for source comparison is [`9382ec6791c70cb97546ffc0a08ca87bc3050746`](https://github.com/Turbo1123/Turbo-IO/tree/9382ec6791c70cb97546ffc0a08ca87bc3050746). This is the comparison baseline, not necessarily the first commit from which every reference was taken, nor evidence that every item has the same historical license.
 
 ## Confirmed reference relationships
 
@@ -19,9 +19,9 @@ The local upstream baseline used for this source comparison is [`9382ec6791c70cb
 
 This is a preliminary, evidence-supported inventory, not a line-by-line copying audit or a complete licensing determination. Design references, copied/translated code, test-vector use, and interface recovery must be recorded separately.
 
-`analysis/check-synthetic-auth.py` is a historical research script retained locally and **is not included in this source preview**. Its row documents research provenance; users are not expected to find or run it. Other Android source paths refer to this repository, while the iOS paths belong to the linked upstream repository.
+`analysis/check-synthetic-auth.py` is a historical research script retained locally and **is not included in this repository**. Its row documents research provenance; users are not expected to find or run it. Other Android source paths refer to this repository, while the iOS paths belong to the linked upstream repository.
 
-## File-level record format before a formal release
+## Recording provenance when contributing code
 
 For each item, record at least: local file and range, upstream project and path, exact commit, license when obtained, type of reference, changes made, required copyright/license notices, and review conclusion. Mark unknown facts as pending verification; do not invent authors or authorization.
 

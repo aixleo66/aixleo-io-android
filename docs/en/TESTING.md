@@ -1,8 +1,8 @@
 [简体中文](../cn/TESTING.md) | [English](TESTING.md)
 
-# End-to-end test steps and evidence limits
+# Feature testing guide
 
-This is a reusable regression guide for self-built apps. It describes how to test, not proof that tests have passed. Record the code commit and artifact hash for each run. See the [audit index](AUDIT.md) for actual results and [compatibility records](COMPATIBILITY.md) for historical device coverage. Real recordings, questions, notifications, and raw logs are not published. Source review or automated tests do not establish device coverage across all phones/firmware.
+After building and installing the app, use these steps to check connection, recording, voice Q&A, and notifications. See [compatibility](COMPATIBILITY.md) for tested devices and systems and [test records](AUDIT.md) for version-specific results. When sharing results, include the commit and device environment, and redact recordings, questions, notifications, and logs.
 
 ## Prerequisites
 
@@ -30,7 +30,7 @@ python idle_check.py --serial "YOUR_PHONE_SERIAL" --seconds 180
 
 The tool takes only two snapshots, at the beginning and end. It checks the same live session's cumulative recorder requests, audio packets, uploads, business submissions, and streaming cloud connections, plus standby state at both ends. `passed` means these counters did not increase within that scope. A changed session or nonzero delta requires investigation; it is not automatically an unauthorized background call. Record intentional wake-ups and arrange a new idle window.
 
-This is not the historical internal 19-sample check, a network capture, electrical current measurement, cloud billing audit, or vendor SDK heartbeat audit. It cannot establish zero power consumption or zero requests from every background component. Results in `out/power-tests/` contain raw state and must be redacted before sharing.
+Output is saved under `out/power-tests/` and includes raw state; redact it before sharing. This tool checks app counters, not Bluetooth traffic, current draw, cloud bills, or vendor SDK heartbeats. Long-term power consumption requires separate measurement.
 
 ## Records and lessons
 

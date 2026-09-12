@@ -2,7 +2,7 @@
 
 # Security mechanisms and usage boundaries
 
-This page describes security design and retained risks on the current branch and changes when behavior changes. Affected versions, fixes, test counts, and device validation status belong in the [audit index](AUDIT.md) and historical snapshots. A design description is not proof that every version has passed validation.
+This page covers diagnostic entry points, session isolation, debug access, and data protection. See [test and audit records](AUDIT.md) for specific defects and fixes.
 
 ## Diagnostic entry points and session isolation
 
@@ -21,8 +21,8 @@ The build currently retains `debuggable=true` and is not production-hardened. Us
 
 The notification listener is protected by the system `BIND_NOTIFICATION_LISTENER_SERVICE` permission. The observer binds only to loopback but may display questions, answers, notification bodies, and identifiers. Diagnostic samples, recordings, and real service configurations are not distributed with source. See [Privacy](PRIVACY.md) for data destinations and user controls.
 
-A scan finding no specified credential patterns is evidence only within that scan's scope, not comprehensive secret detection or vendor binary security certification. New candidate directories need independent checks. Vendor redistribution authorization and file-level ownership are separate matters covered in [Licensing](LICENSING.md); a noncommercial statement does not replace authorization.
+Credential scan scopes and results are listed in [audit records](AUDIT.md). Pattern scans cannot guarantee detection of every secret and are not a comprehensive security audit of vendor binaries.
 
-A private vulnerability reporting channel has not yet been established by the maintainer. Until one exists, do not expose usable credentials or personal data in public Issues. Reports should include the code commit, reproduction steps, and redacted evidence.
+There is currently no dedicated private vulnerability reporting channel. Use an existing contact channel with the maintainer, or describe the issue category in an Issue without exposing usable credentials, personal data, or sensitive exploit details.
 
 Android documentation: [Exported component risks](https://developer.android.com/privacy-and-security/risks/android-exported) and [Debuggable app risks](https://developer.android.com/privacy-and-security/risks/android-debuggable).

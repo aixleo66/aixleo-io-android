@@ -2,7 +2,7 @@
 
 # Installation, configuration, and research builds
 
-The source includes the pinned vendor payload; no prebuilt APK is currently included. Build and sign your APK before installation and setup. This guide follows the current branch; read documentation from the same commit as your code. Debug capabilities remain enabled. Completed checks and pending work are tracked in the [audit index](AUDIT.md).
+Follow this guide to build and install the app, then configure your glasses, voice services, and notifications. The repository includes the pinned vendor communication dependency; no prebuilt APK is currently provided. Builds retain debug capabilities; see [Security](SECURITY.md).
 
 The phone UI currently uses Chinese labels. English explanations below retain the actual Chinese labels so you can find the controls. Documentation translation does not imply that the app UI or ASR language configuration has been localized. Run all commands from the repository root, not this documentation directory.
 
@@ -17,7 +17,7 @@ Glasses connectivity on the test phone requires **Android 12+ / API 31**. The Ma
 5. For notifications, grant Android notification access, enable the forwarding master switch, and select apps. **仅监听检查** (observe-only check) is on by default and prevents forwarding. First verify that phone alerts still work, then turn observe-only off and receive a new notification from a selected app. Check both the phone and glasses. Do not disable normal phone alerts to enable glasses forwarding.
 6. Remote knowledge Q&A is optional and experimental; its usability and stability have not been sufficiently validated for this version. The Android adapter uses `rokid-harness.v1`, originally designed for Rokid, as one way to connect to local Codex. No Rokid Harness project, server, or maintainer service is included. Independent experiments need a compatible WSS Gateway and token; an arbitrary model HTTP endpoint will not work. See [origin, scope, and protocol](GATEWAY.md). Otherwise leave **语音与默认文字提问使用知识库** (use the knowledge service for voice and default text questions) off and use your configured DeepSeek service.
 
-The **验证阿里云 ASR（上传预置语音）** button requires an audio fixture from the original development environment. A fresh install does not have it and the operation fails. Instead use **选择音频上传转写** (select audio to upload for transcription), explicitly choosing a test file you are entitled to upload. Uploading may incur charges. No private samples or historical computer-side `stream_smoke.py` script are included.
+The **验证阿里云 ASR（上传预置语音）** button requires an audio fixture from the original development environment. A fresh install does not have it and the operation fails. Instead use **选择音频上传转写** (select audio to upload for transcription), explicitly choosing a test file you are entitled to upload. Uploading may incur charges.
 
 See [tests](TESTING.md), [observer](OBSERVER.md), and [diagnostic isolation and remaining debug limits](SECURITY.md).
 
@@ -30,7 +30,7 @@ python lab.py bootstrap
 Copy-Item config.example.json config.local.json
 ```
 
-Bootstrap downloads the pinned toolchain and verifies hashes. It does not read a private NAS. Existing tools can be specified with `java_home`, `build_tools`, `android_jar`, and `adb`. Tool downloads remain subject to their providers' licenses.
+Bootstrap downloads the pinned toolchain and verifies hashes. Existing tools can be specified with `java_home`, `build_tools`, `android_jar`, and `adb`. Tool downloads remain subject to their providers' licenses.
 
 Create a local debug key **only if** `private/keys/local-debug.p12` does not already exist. Do not overwrite an existing key.
 
@@ -51,4 +51,4 @@ The example configuration points to the included vendor payload. The build accep
 
 Diagnostic Activities are not exported. `lab.py run --execute` rejects that path before installing or operating on the phone. Do not re-export components to bypass this check. Install and connect through the phone app. The debug build still permits user-authorized ADB `run-as` state reads and commands for an existing session. Launching a diagnostic Activity and sending a command to an existing session are different paths.
 
-Tests do not call cloud services or real glasses; some need the JDK/Android compilation environment. Logic tests do not replace lens confirmation. Builds, automated tests, and device results must identify the specific commit and artifact hash; acceptance of a different artifact cannot be carried forward. See the [audit index](AUDIT.md) for actual results and uncovered environments, and the [test guide](TESTING.md) for regression steps.
+Automated tests make no real cloud or glasses calls; some require the JDK/Android compilation environment. Then follow the [test guide](TESTING.md) to check actual connection and lens output. See [test records](AUDIT.md) for recorded results.
