@@ -11,7 +11,7 @@ This page covers diagnostic entry points, session isolation, debug access, and d
 - Sample ASR diagnostics require explicit upload confirmation, a single-start guard, and coordination between stream creation/start and destruction/cancellation. User-initiated diagnostics can still call cloud services; this sample path does not open the phone microphone.
 - `lab.py run --execute` rejects the legacy diagnostic launch path before installing or operating the phone. Build and install the app, then start the connection from the phone app.
 
-Source evidence includes `app/AndroidManifest.xml`, `app/src/SdkProbeActivity.java`, `app/src/StreamSmokeActivity.java`, and related session control code. Changes to these mechanisms require checking rejected external launches, duplicate/stale instances, concurrency, and normal in-app use following the [test guide](TESTING.md), with actual results recorded.
+The implementation is in `app/AndroidManifest.xml`, `app/src/SdkProbeActivity.java`, `app/src/StreamSmokeActivity.java`, and related session control code. See the [test guide](TESTING.md) for regression procedures.
 
 ## Retained debug capabilities
 

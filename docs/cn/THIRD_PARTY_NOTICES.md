@@ -16,8 +16,6 @@
 
 Turbo IO 当前原创部分使用 PolyForm Noncommercial 1.0.0，并在其说明中保留历史 MIT 版本已授予的权利。其厂商 framework 等第三方组件不受根许可证重新授权。参见 [上游许可](https://github.com/Turbo1123/Turbo-IO/blob/main/docs/LICENSING.md) 和 [上游第三方说明](https://github.com/Turbo1123/Turbo-IO/blob/main/THIRD_PARTY_NOTICES.md)。
 
-凡从上游复制、翻译或改写的受保护内容，均应核对实际适用许可并履行条件；单纯功能相似、兼容所需事实或独立实现需结合来源记录分别判断，不能仅靠文件扩展名或编程语言判断。
-
 厂商名称仅用于标识互操作目标。维护者不代表厂商，也不授予对厂商软件、接口材料、商标或服务的额外权利。
 
 已经附带：app/lib 中 Java-WebSocket、SLF4J 的许可证原文，以及 third-party/Turbo-IO/LICENSE；构建流程也会把前两者许可放入生成的 APK assets。尚待补齐的是完整逐文件来源表、移植内容对应的具体版权通知及厂商依赖适用条款。

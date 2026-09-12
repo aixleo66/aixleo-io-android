@@ -11,7 +11,7 @@
 - 样本 ASR 诊断需要用户显式确认上传，并有单次启动保护、流创建/启动与销毁取消的协调。用户主动诊断仍可能调用云服务；这条样本路径不打开手机麦克风。
 - `lab.py run --execute` 在安装或操作手机前拒绝旧诊断启动路径。自行构建、安装并从手机 App 启动连接。
 
-源码依据包括 `app/AndroidManifest.xml`、`app/src/SdkProbeActivity.java`、`app/src/StreamSmokeActivity.java` 及相关会话控制代码。修改这些机制时，应按[测试指南](TESTING.md)验证外部启动拒绝、重复/过期实例、并发和 App 内部正常使用，并记录实际结果。
+相关实现位于 `app/AndroidManifest.xml`、`app/src/SdkProbeActivity.java`、`app/src/StreamSmokeActivity.java` 及会话控制代码中。回归步骤见[测试指南](TESTING.md)。
 
 ## 保留的调试能力
 

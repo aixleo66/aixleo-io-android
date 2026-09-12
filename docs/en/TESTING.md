@@ -28,7 +28,7 @@ With standby ready and no active recording/question, agree on three minutes with
 python idle_check.py --serial "YOUR_PHONE_SERIAL" --seconds 180
 ```
 
-The tool takes only two snapshots, at the beginning and end. It checks the same live session's cumulative recorder requests, audio packets, uploads, business submissions, and streaming cloud connections, plus standby state at both ends. `passed` means these counters did not increase within that scope. A changed session or nonzero delta requires investigation; it is not automatically an unauthorized background call. Record intentional wake-ups and arrange a new idle window.
+The tool takes two snapshots, at the beginning and end, and compares the same session's cumulative recording requests, audio packets, cloud uploads, business submissions, streaming cloud connections, and standby state. `passed` means the counters did not grow within that scope. If the session changes or counters increase, investigate the actions and logs from that period. Restart the idle check after an intentional wake-up.
 
 Output is saved under `out/power-tests/` and includes raw state; redact it before sharing. This tool checks app counters, not Bluetooth traffic, current draw, cloud bills, or vendor SDK heartbeats. Long-term power consumption requires separate measurement.
 

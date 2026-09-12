@@ -6,6 +6,8 @@ This page records features, fixes, and changes to usage. See [test records](AUDI
 
 ## Unreleased
 
+- Removed the provenance page's contribution-record checklist and further internal review instructions from provenance, third-party, compatibility, and testing pages.
+
 - Rewrote the project introduction for users and simplified repeated audit wording in building, privacy, Gateway, and testing guides. Licensing details and maintenance procedures remain in their dedicated documents; Chinese and English are updated together.
 
 - Renamed the project to **Aixleo iO Android** and the repository to `aixleo-io-android`, preserving commit history.

@@ -2,7 +2,7 @@
 
 # Compatibility and acceptance scope
 
-Compatibility conclusions are scoped to code versions, devices, operating systems, and test conditions. This page preserves existing device coverage; append new version-specific results instead of replacing version numbers in old tables. Automated tests, builds, and security regression status are tracked in the [audit index](AUDIT.md). No prebuilt APK is currently included.
+This page summarizes tested devices, operating systems, and feature scenarios, along with limitations still under investigation. See [test records](AUDIT.md) for automated checks and build results by version.
 
 The table below records **historical 0.12** device results: RayNeo iO with a Xiaomi MIX Fold 4 (24072PX77C), Android 16 / API 36. The dependency baseline is official Android app 1.0.2 (68). The glasses firmware version has not been added to this public matrix. These results cannot establish compatibility with arbitrary firmware or mark all functions in later versions as passed.
 
@@ -21,4 +21,4 @@ The table below records **historical 0.12** device results: RayNeo iO with a Xia
 
 Known issues include intermittent playback-progress inconsistency; unresolved burst-notification stacking/update behavior, with separate IDs retained; incomplete remote/local cancellation coordination; connection dependence on a research Activity's lifecycle; and incomplete testing of long-term power, case placement/removal/wear detection, process termination, and restart recovery.
 
-Public test records should include versions, steps, results, and acceptance conditions, without real notifications, user questions, unique device identifiers, or private evidence-directory paths. A send-success callback alone is not lens-display acceptance.
+If you use another phone or firmware version, share the version, device environment, reproduction steps, and redacted results in an Issue to help expand compatibility coverage.

@@ -16,8 +16,6 @@ Thanks to the author and contributors of [Turbo1123/Turbo-IO](https://github.com
 
 Turbo IO currently licenses its original portions under PolyForm Noncommercial 1.0.0 and preserves rights already granted by historical MIT versions in its notices. Third-party components such as vendor frameworks are not relicensed by its root license. See [upstream licensing](https://github.com/Turbo1123/Turbo-IO/blob/main/docs/LICENSING.md) and [upstream third-party notices](https://github.com/Turbo1123/Turbo-IO/blob/main/THIRD_PARTY_NOTICES.md).
 
-Protected content copied, translated, or adapted from upstream requires checking and complying with its actual applicable license. Similar functionality, facts needed for compatibility, and independent implementations must be assessed separately using provenance records. A file extension or programming language alone does not determine the relationship.
-
 Vendor names identify interoperability targets only. The maintainer does not represent the vendor and grants no additional rights to vendor software, interface material, trademarks, or services.
 
 Already included: original Java-WebSocket and SLF4J license texts in `app/lib`, and `third-party/Turbo-IO/LICENSE`. The build also places the first two licenses in the generated APK's assets. A complete file-level provenance table, specific copyright notices for ported content, and applicable vendor dependency terms remain to be completed.

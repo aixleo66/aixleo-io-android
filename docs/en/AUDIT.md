@@ -18,4 +18,4 @@ This table distinguishes developer-run automated validation from external indepe
 - [2026-09-12: 0.14 corrections and validation for external findings F1–F5 / D1](audits/2026-09-12-0.14.md).
 - [2026-09-12: 0.13 fixes and validation, including historical 0.12-rc1/rc2 audits](audits/2026-09-12-0.13.md). Artifact hashes, test counts, pending work at that time, and third-party rights boundaries remain in that record.
 
-Create a dated, version-specific record for new testing, then update this index. Do not bulk-replace version numbers or pending statuses in old records. Date and explain corrections to historical errors. See [documentation maintenance](DOCUMENTATION.md) for the rules and the [changelog](CHANGELOG.md) for feature differences.
+See the [changelog](CHANGELOG.md) for feature changes and [documentation maintenance](DOCUMENTATION.md) for maintenance procedures.
