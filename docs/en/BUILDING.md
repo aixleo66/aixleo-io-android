@@ -6,6 +6,8 @@ The source includes the pinned vendor payload; no prebuilt APK is currently incl
 
 The phone UI currently uses Chinese labels. English explanations below retain the actual Chinese labels so you can find the controls. Documentation translation does not imply that the app UI or ASR language configuration has been localized. Run all commands from the repository root, not this documentation directory.
 
+Glasses connectivity on the test phone requires **Android 12+ / API 31**. The Manifest's API 29 is only an installation minimum; current connection initialization rejects Android 10/11. APIs 31–35 lack full device validation, while historical device records use API 36. See [compatibility](COMPATIBILITY.md).
+
 ## First installation and configuration after building
 
 1. Complete the build below. Find the resulting APK through `out/latest-build.json`, install it on your test phone, and launch “雷鸟随身助手” from the home screen. If signatures conflict, back up and verify the source first; do not delete existing data just to overwrite the installation. Do not substitute an APK from another version.

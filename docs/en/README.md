@@ -67,6 +67,8 @@ The code is still centered on the Android sample app. Future work will separate 
 
 This project is developed and tested incrementally by the maintainer in collaboration with Codex, using a vibe coding approach. The code, documentation, and test coverage may contain bugs or omissions. Feedback from people using the project helps identify and improve them.
 
+Previous device experiments have demonstrated the core connection, voice Q&A, recording, and notification workflows. This does not mean every interaction detail or failure scenario is complete; logic errors may remain. We are conducting focused tests of these details while continuing to iterate on features. See [audit records](AUDIT.md) for automated checks and device validation of new changes. A code fix does not mean every scenario has passed.
+
 If you encounter a bug, compatibility issue, or documentation gap, or have a feature suggestion, please open a [GitHub Issue](https://github.com/aixleo66/rayneo-io-android/issues). If you already have another way to contact the maintainer, you are welcome to reach out directly.
 
 When reporting a problem, include the project version or commit, device model, OS version, firmware if available, reproduction steps, expected and actual results, and redacted logs where possible. Do not submit keys, recordings, complete notifications, or other people's information. Code and documentation contributions should identify their sources and applicable licenses.

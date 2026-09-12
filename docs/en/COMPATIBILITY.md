@@ -6,7 +6,7 @@ Compatibility conclusions are scoped to code versions, devices, operating system
 
 The table below records **historical 0.12** device results: RayNeo iO with a Xiaomi MIX Fold 4 (24072PX77C), Android 16 / API 36. The dependency baseline is official Android app 1.0.2 (68). The glasses firmware version has not been added to this public matrix. These results cannot establish compatibility with arbitrary firmware or mark all functions in later versions as passed.
 
-The sample Manifest declares minimum API 29; that does not mean APIs 29–35 were all tested. Most device evidence comes from one phone and one pair of glasses. Wider coverage is needed.
+**Glasses connection currently requires Android 12+ / API 31.** The Manifest's minSdk 29 is only the installation declaration. Connection initialization explicitly rejects API < 31, so this connection path does not support Android 10/11; it is not merely untested. APIs 31–35 still lack corresponding device validation; historical device evidence comes from API 36. Most evidence is from one phone and one pair of glasses. Wider coverage is needed.
 
 | Scenario | Historical acceptance result |
 | --- | --- |

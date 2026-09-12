@@ -6,6 +6,26 @@ Records changes relevant to users. A source-preview version is not a published G
 
 ## Unreleased
 
+No additional entries beyond the source preview below are recorded yet.
+
+## 0.14 interaction-fix source preview — 2026-09-12
+
+### Fixed
+
+- F1: File/preset audio and phone fallback diagnostics share the current cancellation object. Cancellation during input, ASR, or Q&A prevents continuation to the next stage.
+- F2: Disconnect can interrupt busy/pending operations. Old command wait callbacks are invalidated to prevent stale UI updates.
+- F3: Device-initiated and local stops share a completion deadline. Missing completion reports fail the task while preserving raw data; repeated stops do not extend the deadline.
+- F4: Phone display, automatic delivery, and manual delivery share the current answer, avoiding stale cached answers.
+
+### Documentation and validation
+
+- F5: Clarify Android 12+ / API 31 for glasses connection, while the installation declaration remains API 29. No lower-version support was added.
+- D1: Add `verify_source.py` to check a commit's manifest against Git blobs, unaffected by working-tree EOL conversion.
+- The README explains that core workflows were demonstrated previously while interaction details remain under focused testing and iteration.
+- 59 automated tests and build checks passed; focused device acceptance and external independent review of the new code are pending. See [validation records](audits/2026-09-12-0.14.md). No APK is included and no GitHub Release is created.
+
+## Earlier documentation updates
+
 ### Documentation
 
 - Describe the vibe coding development approach in collaboration with Codex and provide a feedback entry point.

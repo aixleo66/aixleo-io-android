@@ -19,7 +19,7 @@ Android notification access determines what notifications the app can read. “F
 
 ## User controls
 
-The app provides controls for standby, recording, notification forwarding, and service configuration. Corresponding permissions can be revoked in system settings. Stopping a local wait does not guarantee that a model task already accepted remotely is stopped. A provider may already have processed some data and incurred charges.
+The app provides controls for standby, recording, notification forwarding, and service configuration. Corresponding permissions can be revoked in system settings. **取消手机任务** (cancel phone task) cancels the associated input read, stops phone diagnostic capture, and prevents subsequent transcription or Q&A stages from continuing submission. Cancellation does not guarantee withdrawal of uploaded data or termination of tasks already accepted remotely; a provider may already have processed data and incurred charges. See [audit records](AUDIT.md) for validation scope.
 
 The observer binds only to the computer's loopback address and reads this app's state over USB. The web page redraws protocol content; it is not a screenshot of the lenses. It can still expose message bodies. Hiding bodies by default, requiring explicit opt-in, and limiting observation duration are planned public-version improvements, not completed changes.
 

@@ -21,7 +21,17 @@ Default documentation follows the current branch. When using an older commit, re
 - New code on the current branch is not automatically covered by the latest audit. Mark uncovered behavior as pending validation.
 - Each source snapshot gets its own `source-manifest.json`. Historical audits link to the corresponding commit's manifest so later manifests do not replace their evidence.
 
-## Chinese and English parity
+## Verifying source hashes
+
+`source-manifest.json` describes original file bytes in the selected commit. On Windows, `core.autocrlf` may convert working-tree LF to CRLF, causing direct file hashes to differ. This does not automatically mean corruption, and is not a reason to rewrite historical manifests. Use the repository script to read binary Git blobs:
+
+```powershell
+python verify_source.py --commit HEAD
+```
+
+Replace HEAD with a specific commit already available locally if needed. The script reads the manifest and files from the same commit, bypasses PowerShell text pipelines, and makes no network, cloud, or device calls. It does not check uncommitted working-tree changes. A source archive without `.git` cannot use this method; obtain the corresponding Git commit first. Vendor payload entries and signatures/build artifacts remain subject to their own manifests and build checks.
+
+## Chinese and English parity rules
 
 Keep identical relative document paths under `docs/cn` and `docs/en`. When behavior changes, update both corresponding pages and keep language switches, code examples, parameters, limitations, and test status consistent. The root README defaults to Chinese; legacy entry links remain valid. Do not translate or rewrite original third-party license texts.
 
