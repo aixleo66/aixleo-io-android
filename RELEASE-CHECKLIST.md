@@ -1,23 +1,8 @@
 # 0.13 源码预览范围
 
-本轮 Git 仓库提供源码、固定厂商依赖、文档和构建测试；不创建 GitHub Release，也不上传安装包。用途为非商业研究与探索设备更多可能性。上传源码与发布安装包是不同动作，本文不把上传操作预先标记为已完成。
+文档已按语言整理，默认阅读中文版。此入口保留原有链接。
 
-## 包含
+- [简体中文](docs/cn/RELEASE-CHECKLIST.md)
+- [English](docs/en/RELEASE-CHECKLIST.md)
 
-- 0.13 自有 App/适配源码及 SEC-01/02 本地修复、纯逻辑测试、构建脚本和空配置模板。
-- `vendor-payload.jar`：与历史依赖基线相同的三份官方 DEX、两份协程服务声明。
-- Java-WebSocket/SLF4J 依赖与许可、Turbo IO 参考及来源说明、PolyForm 非商业许可原文。
-- 初次配置、观察台、测试复现、Gateway 契约和兼容性说明。
-- 安全缺陷、修复实现、验证进度和历史测试的明确区分。
-
-## 排除
-
-`artifacts/` 安装包、0.12/0.13 APK、完整官方 APK、私人签名、Key/Token、本地配置、录音、真实问答与通知、设备唯一标识、个人知识库、原始抓包/反编译全量输出、工具缓存，以及依赖私人样本的历史 `stream_smoke.py`。
-
-## 当前边界
-
-SEC-01/02 已在本地实现修复，源码独立复核、45 项自动测试与构建检查已通过；SEC-03 的 debug 能力仍保留。完整真机回归尚未完成。详见 [SECURITY](SECURITY.md) 与 [AUDIT](AUDIT.md)，0.12 的完整闭环结果不能直接沿用为 0.13 验收。
-
-厂商再分发授权、逐文件完整权属审查尚未完成。用户选择随源码附厂商依赖，不等于根许可证获得厂商权利；保留 iOS 致谢同样不替代许可履行。
-
-上传目录需独立检查文件清单、嵌套 payload 的凭据模式、许可证及来源通知、所有本地链接和构建输入。实际检查与上传结果据实追加到审核记录；不把待办写成已完成。
+Documentation is organized by language. Chinese is the default; this entry preserves existing links.

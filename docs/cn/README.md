@@ -1,26 +1,26 @@
-[简体中文](docs/cn/README.md) | [English](docs/en/README.md)
+[简体中文](README.md) | [English](../en/README.md)
 
 > 0.13 非商业研究源码预览：提供源码、固定厂商依赖、文档和构建测试；不附安装包，不创建 GitHub Release。厂商再分发授权尚未核实，非商业定位不替代厂商授权。
 
-> 0.13 已在本地实现 SEC-01/02 的诊断入口隔离与会话归属修复，源码独立复核、45 项自动测试与构建检查已通过，尚未完成新版本的完整真机回归。0.12 的人工测试结果仅作为历史功能基线，旧安装包不在本源码预览中提供。调试构建仍保留，具体状态见 [SECURITY](docs/cn/SECURITY.md)。
+> 0.13 已在本地实现 SEC-01/02 的诊断入口隔离与会话归属修复，源码独立复核、45 项自动测试与构建检查已通过，尚未完成新版本的完整真机回归。0.12 的人工测试结果仅作为历史功能基线，旧安装包不在本源码预览中提供。调试构建仍保留，具体状态见 [SECURITY](SECURITY.md)。
 
 # RayNeo iO Android Companion · 非官方 Android SDK 研究项目
 
 面向开发者的雷鸟 iO 互操作研究项目，附带 Android 示例客户端，用于研究眼镜连接、语音输入、文字显示、录音归档和手机通知转发。
 
-**参考与致谢：本项目在开发过程中参考了 [Turbo1123/Turbo-IO](https://github.com/Turbo1123/Turbo-IO) 的 iOS 实现与研究文档，包括设备通信与会话、语音助手交互、普通录音及显示观察思路。感谢原作者和贡献者的研究工作。** 本项目为单独维护的 Android 研究实现，不是 Turbo IO 作者发布或认可的官方 Android 移植版，也不宣称所有实现均为独立原创。具体引用、移植和许可范围见 [来源记录](docs/cn/PROVENANCE.md)。
+**参考与致谢：本项目在开发过程中参考了 [Turbo1123/Turbo-IO](https://github.com/Turbo1123/Turbo-IO) 的 iOS 实现与研究文档，包括设备通信与会话、语音助手交互、普通录音及显示观察思路。感谢原作者和贡献者的研究工作。** 本项目为单独维护的 Android 研究实现，不是 Turbo IO 作者发布或认可的官方 Android 移植版，也不宣称所有实现均为独立原创。具体引用、移植和许可范围见 [来源记录](PROVENANCE.md)。
 
 **项目与雷鸟及其关联公司无官方隶属、合作或背书关系。RayNeo / 雷鸟 iO 名称仅用于说明兼容设备。** 当前为实验性开发版本，尚未形成稳定的独立 SDK API，不承诺替代官方 App 的全部功能。
 
-使用者需要具备 Android 开发与调试能力，自行准备工具链、签名和服务配置。当前设备通信实现仍依赖特定版本的厂商组件；厂商组件与原创代码的许可范围分开处理。具体要求见 [构建与依赖](docs/cn/BUILDING.md) 和 [第三方说明](docs/cn/THIRD_PARTY_NOTICES.md)。
+使用者需要具备 Android 开发与调试能力，自行准备工具链、签名和服务配置。当前设备通信实现仍依赖特定版本的厂商组件；厂商组件与原创代码的许可范围分开处理。具体要求见 [构建与依赖](BUILDING.md) 和 [第三方说明](THIRD_PARTY_NOTICES.md)。
 
 本源码预览包含示例源码、测试和文档，以及 `vendor/rayneo-venus-1.0.2-68/vendor-payload.jar`：其中为官方 App 三份原样 DEX 与两份协程服务声明。厂商代码单独列明来源，不宣称为本项目原创或由根许可证授权。不提供预编译 APK、完整官方 APK、签名私钥、服务凭据或用户数据。
 
-**已带固定厂商依赖，不需要使用者再次提取。** 使用者自行准备工具链和签名，构建 0.13 后安装测试。它不是不依赖厂商代码的独立实现，也没有自动支持其他版本的保证。安装、配置和构建方法见 [构建与依赖](docs/cn/BUILDING.md)。
+**已带固定厂商依赖，不需要使用者再次提取。** 使用者自行准备工具链和签名，构建 0.13 后安装测试。它不是不依赖厂商代码的独立实现，也没有自动支持其他版本的保证。安装、配置和构建方法见 [构建与依赖](BUILDING.md)。
 
 ## 功能与历史验证范围
 
-下列真机结果来自 0.12 基线。0.13 调整了诊断入口与会话管理，需按 [测试步骤](docs/cn/TESTING.md) 重新验证，不能把旧版本的结果直接当作新版本全部通过。
+下列真机结果来自 0.12 基线。0.13 调整了诊断入口与会话管理，需按 [测试步骤](TESTING.md) 重新验证，不能把旧版本的结果直接当作新版本全部通过。
 
 | 功能 | 状态与限制 |
 | --- | --- |
@@ -41,7 +41,7 @@
 - 手机通知转发不调用模型；通知正文可能出现在眼镜和诊断预览中。
 - 使用者配置自己的 Key 和服务，相关调用按服务商规则计费。本项目不附带共享额度或维护者的服务账户。
 
-详情见 [权限、数据与诊断](docs/cn/PRIVACY.md)。
+详情见 [权限、数据与诊断](PRIVACY.md)。
 
 ## 连接前须知
 
@@ -57,9 +57,9 @@
 - 不保证手机取消等待即可终止已提交的远端模型任务。
 - 不提供官方历史数据迁移、代签名、收费代配置或厂商服务访问凭据。
 
-完整验收范围见 [兼容性与测试](docs/cn/COMPATIBILITY.md)。
+完整验收范围见 [兼容性与测试](COMPATIBILITY.md)。
 
-开发者复现：[测试步骤](docs/cn/TESTING.md) · [观察台启动](docs/cn/OBSERVER.md) · [实验性 Gateway 协议与未包含的服务端范围](docs/cn/GATEWAY.md)。
+开发者复现：[测试步骤](TESTING.md) · [观察台启动](OBSERVER.md) · [实验性 Gateway 协议与未包含的服务端范围](GATEWAY.md)。
 
 ## 项目结构与开发方向
 
@@ -71,19 +71,19 @@
 
 本项目有权授权的原创部分采用 PolyForm Noncommercial 1.0.0，定位于学习、互操作研究与探索设备更多可能性的非商业项目，具体范围以 LICENSE 原文为准。第三方内容保留原许可；厂商组件和商标不因共同使用而改变权利归属。不得将整包称为全部原创或全部由根许可证授权。
 
-许可范围与来源核对见 [许可说明](docs/cn/LICENSING.md)。用途声明不能替代所需授权，厂商组件的出现也不表示权利人已许可再分发。
+许可范围与来源核对见 [许可说明](LICENSING.md)。用途声明不能替代所需授权，厂商组件的出现也不表示权利人已许可再分发。
 
 ## 文档目录
 
-- [构建与首次配置](docs/cn/BUILDING.md)
-- [兼容性与限制](docs/cn/COMPATIBILITY.md)
-- [测试步骤与证据](docs/cn/TESTING.md)
-- [浏览器观察台](docs/cn/OBSERVER.md)
-- [实验性 Gateway 协议](docs/cn/GATEWAY.md)
-- [权限与隐私](docs/cn/PRIVACY.md)
-- [安全状态](docs/cn/SECURITY.md)
-- [独立审核记录](docs/cn/AUDIT.md)
-- [源码预览范围](docs/cn/RELEASE-CHECKLIST.md)
-- [来源与致谢](docs/cn/PROVENANCE.md)
-- [第三方说明](docs/cn/THIRD_PARTY_NOTICES.md)
-- [许可范围](docs/cn/LICENSING.md)
+- [构建与首次配置](BUILDING.md)
+- [兼容性与限制](COMPATIBILITY.md)
+- [测试步骤与证据](TESTING.md)
+- [浏览器观察台](OBSERVER.md)
+- [实验性 Gateway 协议](GATEWAY.md)
+- [权限与隐私](PRIVACY.md)
+- [安全状态](SECURITY.md)
+- [独立审核记录](AUDIT.md)
+- [源码预览范围](RELEASE-CHECKLIST.md)
+- [来源与致谢](PROVENANCE.md)
+- [第三方说明](THIRD_PARTY_NOTICES.md)
+- [许可范围](LICENSING.md)

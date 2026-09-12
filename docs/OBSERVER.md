@@ -1,17 +1,8 @@
 # 浏览器显示观察台
 
-观察台读取自有 App 的运行状态，并在浏览器重绘。它不是镜片截图或真正的屏幕镜像；“发送完成”不能证明佩戴者看到了内容。
+文档已按语言整理，默认阅读中文版。此入口保留原有链接。
 
-先按 [构建与首次配置](BUILDING.md) 配好 Python、ADB，自行构建并安装 0.13 调试 APK，从手机 App 启动连接。授权本机 USB 调试并保持 App 会话运行。仓库不附安装包，`lab.py run --execute` 不启动非导出的诊断 Activity。用配置中的 ADB 执行 `adb devices` 获取自己的手机序列号；在项目根目录运行：
+- [简体中文](cn/OBSERVER.md)
+- [English](en/OBSERVER.md)
 
-```powershell
-python display_observer.py --serial "替换为手机序列号" --port 8791 --seconds 1800
-```
-
-打开 `http://127.0.0.1:8791/`。服务仅绑定回环地址，严格校验 Host，不提供远程控制或 BLE 写入接口。每秒用 ADB `run-as` 读取自有 App 的 `files/result.json`，校验进程是否仍存活；普通不可调试发布 APK 不一定支持这种读取。
-
-默认运行 30 分钟，也可以 Ctrl+C 停止。停止观察台不会停止手机 App、眼镜待命或正在进行的录音；这些应在 App 内操作。端口占用时换一个端口并使用对应 URL。
-
-观察台只展示有限的当前状态与阶段，不是完整历史日志，也不会自动生成整晚测试报告。正文没有默认脱敏，展示或分享前检查问答、通知、地址等。截图和导出的本地结果不应直接提交到公开仓库。
-
-通过条件：浏览器在线且会话/进程有效，触发一次明确操作后对应阶段更新。最终镜片显示仍需佩戴者确认；请在 [测试记录](TESTING.md) 中分别记录协议结果与人工观察。页面离线时先核对 USB 授权、ADB 配置、App 进程和服务运行时限，不要仅为恢复观察台反复解绑眼镜。
+Documentation is organized by language. Chinese is the default; this entry preserves existing links.
