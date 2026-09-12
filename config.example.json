@@ -1,0 +1,8 @@
+{
+  "sample": "vendor/rayneo-venus-1.0.2-68/vendor-payload.jar",
+  "key": "private/keys/local-debug.p12",
+  "java_home": "",
+  "build_tools": "",
+  "android_jar": "",
+  "adb": ""
+}

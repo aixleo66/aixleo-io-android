@@ -1,0 +1,12 @@
+/private/
+/.tools/
+/.venv/
+/out/
+/config.local.json
+/llm.local.json
+__pycache__/
+*.pyc
+*.apk
+*.p12
+*.jks
+*.keystore

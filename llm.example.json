@@ -1,0 +1,7 @@
+{
+  "base_url": "",
+  "model": "",
+  "api_key": "",
+  "api_key_env": "RAYNEO_LLM_API_KEY",
+  "max_tokens": 256
+}

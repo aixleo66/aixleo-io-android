@@ -1,0 +1,35 @@
+{
+  "origin": "RayNeo AI Android App 1.0.2 (68)",
+  "origin_apk_sha256": "32c67abbdf3c87eb113f965f984b79eee17b4bf3136f14f535375752ab1a7093",
+  "payload_sha256": "d1d54046ed811e0bfb965f30a051a5bd4f3342760c3c69cc3aaca32424860f9f",
+  "entries": [
+    {
+      "path": "classes.dex",
+      "bytes": 9364416,
+      "sha256": "7777aafca2eb6ad95dc0e4c2858d406d50183142d8c9201739f5d72525e36117"
+    },
+    {
+      "path": "classes2.dex",
+      "bytes": 9473828,
+      "sha256": "04a7d400568ea8d66df06133562d329790318f968a378eea524f1459e3e4b35c"
+    },
+    {
+      "path": "classes3.dex",
+      "bytes": 8507076,
+      "sha256": "99bcb84be054579256a9e4c0ec2e3c86b5dcf26887a72580c1dbbbaa8db8e85c"
+    },
+    {
+      "path": "META-INF/services/kotlinx.coroutines.internal.MainDispatcherFactory",
+      "bytes": 52,
+      "sha256": "a1ea77ea8f93f419256b6e66f29713f950d8d6e90442b608d880a48003b5eb72"
+    },
+    {
+      "path": "META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler",
+      "bytes": 54,
+      "sha256": "3129b8edf6db07de6f8ff47695e2177c8bba4eed2962d3085c719e5acbb58a33"
+    }
+  ],
+  "bytes_modified": false,
+  "redistribution_authorization_verified": false,
+  "root_license_applies": false
+}

@@ -1,0 +1,45 @@
+{
+  "source": "Google repository2-1.xml and Adoptium JDK21 metadata, retrieved 2026-09-11",
+  "windows_x64": [
+    {
+      "archive": "jdk.zip",
+      "url": "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-21.0.12.1%2B1/OpenJDK21U-jdk_x64_windows_hotspot_21.0.12.1_1.zip",
+      "algorithm": "sha256",
+      "checksum": "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e",
+      "size": 205073461,
+      "destination": "jdk",
+      "sentinel": "jdk-21.0.12.1+1/bin/javac.exe",
+      "archive_sha256": "f9d6e191ab098c0d416e7d588a24420a8621cd2f4720dab2459b8b7b2d2d8b4e"
+    },
+    {
+      "archive": "build-tools.zip",
+      "url": "https://dl.google.com/android/repository/build-tools_r36_windows.zip",
+      "algorithm": "sha1",
+      "checksum": "f16ccffd34de8790dede813a6c7d8e2c11a27b50",
+      "size": 58699878,
+      "destination": "build-tools",
+      "sentinel": "android-16/aapt2.exe",
+      "archive_sha256": "aa1095cb14d83e483818a748a2c06faaeb8e601561b06a356a119a1b2ca280d3"
+    },
+    {
+      "archive": "platform.zip",
+      "url": "https://dl.google.com/android/repository/platform-36-ext19_r01.zip",
+      "algorithm": "sha1",
+      "checksum": "52e240c229cf2ad561ee262ebdfff266e180c585",
+      "size": 66057671,
+      "destination": "platform",
+      "sentinel": "android-36-ext19/android.jar",
+      "archive_sha256": "55bd3620999428ff13097c982c9f0d40de566d846f0bed153bf8d4e1491b90ff"
+    },
+    {
+      "archive": "platform-tools.zip",
+      "url": "https://dl.google.com/android/repository/platform-tools_r37.0.1-win.zip",
+      "algorithm": "sha1",
+      "checksum": "e03e78b1d80b396f1c3358e31251cb31740e1110",
+      "size": 8044989,
+      "destination": "platform-tools",
+      "sentinel": "platform-tools/adb.exe",
+      "archive_sha256": "45f4d63113e895ebde0c90f194099a4676b6ac653bd28d54314a9e022bbc1a99"
+    }
+  ]
+}
