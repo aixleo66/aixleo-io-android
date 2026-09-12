@@ -1,4 +1,14 @@
-# 可选知识库 Gateway 契约
+# 可选知识库 Gateway 契约（实验性参考）
+
+## 来源与本版范围
+
+这里的协议沿用 **Rokid Local Harness Bridge**（`rokid-local-harness-bridge`，简称 Rokid Harness）项目，最初为 Rokid 眼镜连接电脑端本地 Codex 与知识库而设计，因此仍保留 `rokid-harness.v1` 这个协议名称。它是雷鸟 Android 客户端连接本地 Codex 的一种探索方式，不是唯一方式，也不是本项目要求使用的标准方案；更多、更灵活的接入方式仍在探索中。
+
+**本版没有包含 Rokid Harness 工程或其服务端实现，也不在本版中新增或分发它。** 仓库仅保留 Android 侧的实验性兼容客户端（`KnowledgeClient.java`、`KnowledgeRunState.java`）及相关配置。电脑端 Gateway、Codex 调用适配、知识库检索服务、隧道启动脚本和部署配置均未随本仓库提供。
+
+该接入方案尚未在本版完成充分的可用性与稳定性验证。历史开发中的连接、问答尝试不等于可供使用者直接部署的完整验收；下文只是现有客户端的协议参考，不构成已交付或已验证的 Harness 服务承诺。可以跳过这项实验功能，使用独立的模型服务配置；录音、通知等功能不要求部署 Rokid Harness。
+
+## 现有客户端协议
 
 本包只有 Android 客户端，没有附带电脑端 Gateway、知识库或 Codex 运行环境。此接口是 `rokid-harness.v1` 专用 WebSocket 协议，不能填任意 OpenAI 兼容 HTTP 地址代替。行为以 `app/src/KnowledgeClient.java` 和 `KnowledgeRunState.java` 为准。
 
