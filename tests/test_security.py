@@ -9,7 +9,7 @@ class SecurityChecks(unittest.TestCase):
     def test_current_diagnostics_reject_shell_execution_before_device_access(self):
         self.assertFalse(lab.legacy_diagnostic_launch_enabled())
         with patch.object(lab, 'adb_result') as adb:
-            with self.assertRaisesRegex(RuntimeError, '0.13'):
+            with self.assertRaisesRegex(RuntimeError, '已关闭外部诊断入口'):
                 lab.run_device({}, 'explicit-device', execute=True)
             adb.assert_not_called()
 

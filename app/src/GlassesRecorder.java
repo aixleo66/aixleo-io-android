@@ -13,6 +13,7 @@ final class GlassesRecorder {
     private final ThreadPoolExecutor io=new ThreadPoolExecutor(1,1,0,TimeUnit.SECONDS,new ArrayBlockingQueue<>(128));
     private String id;private File folder;private RecordingFile receiver;private long started,ackAt;private volatile String phase="idle",error="";
     private volatile boolean receiving,completed;private boolean finalizing,closed;private volatile int bytes;private volatile String coverage="";private volatile long duration;private long lastFlush;
+    private String stopDeadlineId;
     GlassesRecorder(Context c,Handler h,Host host){context=c;main=h;this.host=host;}
     boolean busy(){return id!=null&&!phase.equals("saved")&&!phase.equals("failed");}
     boolean captures(){return receiving;}
@@ -28,7 +29,7 @@ final class GlassesRecorder {
         File root=new File(context.getFilesDir(),"recordings");if(!root.exists()&&!root.mkdirs())throw new IOException("Storage unavailable");
         if(root.getUsableSpace()<128L*1024*1024)throw new IOException("请至少留出 128 MB 手机空间");
         id=UUID.randomUUID().toString();folder=new File(root,id);if(!folder.mkdir())throw new IOException("Create recording directory");
-        started=System.currentTimeMillis();ackAt=0;bytes=0;coverage="";duration=0;error="";completed=false;finalizing=false;phase="starting";receiving=true;publish();
+        started=System.currentTimeMillis();ackAt=0;bytes=0;coverage="";duration=0;error="";completed=false;finalizing=false;stopDeadlineId=null;phase="starting";receiving=true;publish();
         final String current=id;
         submit(()->{try{receiver=new RecordingFile(new File(folder,"source.rawopus"));manifest();main.post(()->{if(!current.equals(id)||closed||!receiving)return;if(!phase.equals("starting")){fail("开始录音已取消");return;}try{
             host.send(14,new JSONObject().put("isAppForeground",true),"rec-foreground-"+current);
@@ -40,9 +41,19 @@ final class GlassesRecorder {
         }catch(Exception e){fail("录音开始命令失败");}});}catch(Exception e){main.post(()->fail("无法准备录音存储"));}});
     }
     void stop()throws Exception{
-        if(!busy()||phase.equals("saving")||phase.equals("stopping"))return;phase="stopping";publish();
+        if(!beginStopping())return;
         host.send(4,new JSONObject().put("uuid",id).put("action",1).put("code",2),"rec-stop-"+id);
-        String current=id;main.postDelayed(()->{if(current.equals(id)&&busy()&&!finalizing)fail("未收到完整结束回报；原始数据已保留");},30000);
+    }
+    private boolean beginStopping(){
+        if(!busy()||completed||phase.equals("saving"))return false;
+        boolean first=!phase.equals("stopping");phase="stopping";
+        // Arm before any transport call, including a device-initiated stop ACK.
+        if(!id.equals(stopDeadlineId)){
+            final String current=id;stopDeadlineId=current;
+            main.postDelayed(()->{if(current.equals(id)&&busy()&&receiving&&!completed&&!finalizing)
+                fail("未收到完整结束回报；原始数据已保留");},30000);
+        }
+        if(first)publish();return first;
     }
     void event(BusinessEnvelope wire)throws Exception{
         if(id==null)return;JSONObject j=new JSONObject(wire.json);if(!id.equals(j.optString("uuid")))return;
@@ -54,7 +65,7 @@ final class GlassesRecorder {
             if(finalizing){fail("结束后仍有迟到音频，文件需复核");return;}
             long offset=j.getLong("offset");if(offset<0||offset>RecordingFile.LIMIT)throw new IOException("Offset bounds");
             byte[] block=wire.audio.clone();submit(()->{try{receiver.append((int)offset,block);bytes=receiver.received();coverage=receiver.coverage();long now=SystemClock.elapsedRealtime();if(now-lastFlush>=1000){receiver.sync();manifest();lastFlush=now;main.post(this::publish);}}catch(Exception e){main.post(()->fail("接收数据冲突或写盘失败；原件保留"));}finally{Arrays.fill(block,(byte)0);}});
-        }else if(wire.type==4){if(j.optInt("action")==1)host.send(4,new JSONObject().put("uuid",id).put("action",2).put("code",j.optInt("code",2)),"rec-ack-"+id);phase="stopping";publish();}
+        }else if(wire.type==4){beginStopping();if(j.optInt("action")==1)host.send(4,new JSONObject().put("uuid",id).put("action",2).put("code",j.optInt("code",2)),"rec-ack-"+id);}
         else if(wire.type==6&&j.optBoolean("completed")&&!completed){completed=true;phase="saving";publish();String current=id;
             main.postDelayed(()->{if(!current.equals(id)||!receiving)return;finalizing=true;submit(()->{try{receiver.seal(completed);receiver.close();manifest();long ms=RecordingDecoder.decode(new File(folder,"source.rawopus"),new File(folder,"recording.wav"));
                 main.post(()->{if(!current.equals(id)||!receiving)return;duration=ms;phase="saved";receiving=false;submit(()->{try{manifest();main.post(this::publish);}catch(Exception e){main.post(()->fail("音频已保存，目录记录写入失败"));}});});

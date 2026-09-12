@@ -1,4 +1,4 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.xr.rayneo.probe" android:versionCode="13" android:versionName="0.13-diagnostic-isolation">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.xr.rayneo.probe" android:versionCode="14" android:versionName="0.14-interaction-fixes">
   <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
   <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
   <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />

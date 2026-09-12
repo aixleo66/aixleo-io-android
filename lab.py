@@ -376,7 +376,7 @@ def run_device(s, serial, execute=False, output=None, target_address=None, sdk_m
         if sdk_mode in ('sdk-connect', 'sdk-status', 'sdk-text', 'sdk-session'):
             report['pairing_ready_confirmed'] = pairing_ready
     if execute and not legacy_diagnostic_launch_enabled():
-        raise RuntimeError('0.13 已关闭外部诊断入口；run --execute 不再支持，也不会安装或操作手机。请自行安装构建 APK 后从手机 App 连接；观察台和 session 工具仍可使用。')
+        raise RuntimeError('当前构建已关闭外部诊断入口；run --execute 不再支持，也不会安装或操作手机。请自行安装构建 APK 后从手机 App 连接；观察台和 session 工具仍可使用。')
     started = False
     keep_session = False
     run_dir = fresh_output_dir('runs')

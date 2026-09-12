@@ -10,14 +10,21 @@ final class CloudClient {
     static final class Cancellation {
         private volatile boolean cancelled;
         private HttpsURLConnection active;
+        private Closeable activeInput;
         synchronized void attach(HttpsURLConnection value) throws InterruptedException { check(); active = value; }
         synchronized void detach(HttpsURLConnection value) { if (active == value) active = null; }
+        synchronized void attachInput(Closeable value) throws InterruptedException { check(); activeInput = value; }
+        synchronized void detachInput(Closeable value) { if (activeInput == value) activeInput = null; }
         void check() throws InterruptedException { if (cancelled || Thread.currentThread().isInterrupted()) throw new InterruptedException("Cloud call cancelled"); }
         void cancel() {
             final HttpsURLConnection connection;
-            synchronized (this) { cancelled = true; connection = active; }
-            if (connection != null) {
-                Thread close = new Thread(() -> { try { connection.disconnect(); } catch (Exception ignored) {} }, "cloud-cancel");
+            final Closeable input;
+            synchronized (this) { cancelled = true; connection = active; input = activeInput; }
+            if (connection != null || input != null) {
+                Thread close = new Thread(() -> {
+                    try { if (input != null) input.close(); } catch (Exception ignored) {}
+                    try { if (connection != null) connection.disconnect(); } catch (Exception ignored) {}
+                }, "cloud-cancel");
                 close.setDaemon(true); close.start();
             }
         }

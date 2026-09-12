@@ -1,0 +1,70 @@
+package dev.xr.rayneo.probe;
+import java.io.*;
+import java.util.*;
+import org.json.*;
+import android.os.Handler;
+import android.os.SystemClock;
+
+/** Executes selected unchanged production method bodies with host-side UI/storage substitutes. */
+final class ActivityInteractionCheck {
+    static final class Text {String value="";void setText(String s){value=s;}}
+    static final class Capture {boolean cancelled;}
+    private AnswerResult currentAnswer=AnswerResult.empty();
+    private final CommandWait commandWait=new CommandWait();
+    private CloudClient.Cancellation jobCancellation;
+    private Capture recording;
+    private String jobId,displayedCloudId="";
+    private boolean busy,destroyed;
+    private final Text status=new Text(),answer=new Text();
+    private final Handler handler=new Handler();
+    private final File files;
+    private JSONObject latest=new JSONObject().put("session_id","session").put("live",true),submitted;
+    private int writes;
+    ActivityInteractionCheck(File files){this.files=files;}
+    private File getFilesDir(){return files;}
+    private JSONObject session(){return latest;}
+    private boolean isLive(JSONObject value){return value.optBoolean("live");}
+    private void persist(String name,JSONObject value){if(name.equals("session-command.json")){submitted=value;writes++;}}
+
+    // PRODUCTION_METHODS
+
+    static void check(boolean ok){if(!ok)throw new AssertionError();}
+    public static void main(String[] args)throws Exception{
+        File files=new File(args[1]);files.mkdirs();
+        if(args[0].equals("interrupt")){
+            for(String active:Arrays.asList("voice-native","record-start","notify")){
+                ActivityInteractionCheck page=new ActivityInteractionCheck(files);
+                page.sendSessionCommand(active,null);check(page.writes==1&&page.busy);
+                Runnable old=page.handler.callbacks().get(0);
+                page.latest.put("last_command",new JSONObject().put("id",page.submitted.getString("command_id")).put("status","pending"));
+                CloudClient.Cancellation original=page.jobCancellation=new CloudClient.Cancellation();
+                Capture capture=page.recording=new Capture();page.jobId="old-phone-job";
+                page.sendSessionCommand("stop",null);
+                check(page.writes==2&&page.submitted.getString("kind").equals("stop"));
+                check(capture.cancelled&&page.jobId==null&&page.busy);
+                try{original.check();throw new AssertionError();}catch(InterruptedException expected){}
+                String waiting=page.status.value;old.run();check(page.busy&&page.status.value.equals(waiting));
+                page.latest.put("last_command",new JSONObject().put("id",page.submitted.getString("command_id")).put("status","completed")).put("live",false);
+                page.handler.runReady();check(!page.busy);
+                String done=page.status.value;old.run();check(page.status.value.equals(done));
+            }
+        }else if(args[0].equals("answer")){
+            ActivityInteractionCheck page=new ActivityInteractionCheck(files);
+            page.answer.setText(page.renderAnswer(new JSONObject().put("answer",new JSONObject().put("text","full A").put("lens_text","lens A"))));
+            page.answer.setText(page.renderAnswer(new JSONObject().put("text","answer B")));
+            page.sendToGlasses();check(page.writes==1);
+            check(page.answer.value.equals("answer B")&&page.submitted.getJSONObject("notification").getString("content").equals("answer B"));
+            page.busy=false;page.clearAnswer();page.sendToGlasses();check(page.writes==1&&!page.currentAnswer.available());
+            page.renderAnswer(new JSONObject().put("answer",new JSONObject().put("text","full C").put("lens_text","short C").put("sources",new JSONArray())));
+            check(page.currentAnswer.lensText.equals("short C")&&page.currentAnswer.text.equals("full C"));
+        }else if(args[0].equals("cancel")){
+            ActivityInteractionCheck page=new ActivityInteractionCheck(files);page.busy=true;page.jobId="phone-job";
+            CloudClient.Cancellation original=page.jobCancellation=new CloudClient.Cancellation();
+            Capture capture=page.recording=new Capture();long ticket=page.commandWait.begin();
+            page.renderAnswer(new JSONObject().put("text","old answer"));page.cancelPhoneJob();
+            check(capture.cancelled&&page.recording==null&&page.jobId==null&&!page.busy&&!page.currentAnswer.available()&&!page.commandWait.current(ticket));
+            try{original.check();throw new AssertionError();}catch(InterruptedException expected){}
+        }else throw new AssertionError(args[0]);
+        System.out.println("Activity interaction "+args[0]+" passed");
+    }
+}

@@ -17,22 +17,22 @@ public final class CloudActivity extends Activity {
     private TextView status, answer, link;
     private EditText question;
     private Switch streaming,knowledgeVoice;
-    private String lastLensText="";
+    private AnswerResult currentAnswer=AnswerResult.empty();
+    private final CommandWait commandWait=new CommandWait();
     private CloudClient.Cancellation jobCancellation;
     private String renderAnswer(JSONObject value){
         JSONObject body=value.optJSONObject("answer");if(body==null)body=value;
-        StringBuilder text=new StringBuilder(body.optString("text",value.optString("text")));
+        currentAnswer=new AnswerResult(body.optString("text",value.optString("text")),body.optString("lens_text"));
+        StringBuilder text=new StringBuilder(currentAnswer.text);
         JSONArray sources=body.optJSONArray("sources");
         if(sources!=null){text.append("\n\n来源：");if(sources.length()==0)text.append("本轮没有引用知识库资料");
             for(int i=0;i<sources.length();i++){JSONObject s=sources.optJSONObject(i);if(s!=null)text.append("\n• ").append(s.optString("title")).append("\n  ").append(s.optString("path"));}}
-        lastLensText=body.optString("lens_text",body.optString("text",value.optString("text")));
-        if(!lastLensText.equals(body.optString("text",value.optString("text"))))text.append("\n\n眼镜显示短答，完整回答保留在此页。");
+        if(!currentAnswer.lensText.equals(currentAnswer.text))text.append("\n\n眼镜显示短答，完整回答保留在此页。");
         return text.toString();
     }
     private boolean busy;
     private volatile boolean destroyed;
     private PhoneRecording recording;
-    private String lastText = "";
     private String jobId;
     private java.util.concurrent.ExecutorService worker = java.util.concurrent.Executors.newSingleThreadExecutor();
     private LinearLayout root;
@@ -84,7 +84,7 @@ public final class CloudActivity extends Activity {
         shell.title(0,"随身录音","用眼镜收音，录音保存在手机。");
         recordingState=shell.card(0,"准备录音\n\n连接眼镜后点击开始。");
         recordStart=shell.action(0,"开始录音",true,()->{stopPlayback();sendSessionCommand("record-start",null);});
-        recordStop=shell.action(0,"结束并保存",false,()->{busy=false;sendSessionCommand("record-stop",null);});recordStop.setEnabled(false);
+        recordStop=shell.action(0,"结束并保存",false,()->sendSessionCommand("record-stop",null));recordStop.setEnabled(false);
         shell.note(0,"本版每段最多 5 分钟。原始音频只存手机，不上传；录音会暂停语音待命，保存后自动恢复已开启的待命。");
         shell.section(0,"我的录音");recordingList=new LinearLayout(this);recordingList.setOrientation(1);shell.pages[0].addView(recordingList);
         shell.action(0,"停止手机播放",false,this::stopPlayback);
@@ -93,7 +93,7 @@ public final class CloudActivity extends Activity {
         shell.title(1,"语音助手","戴着眼镜，开口提问。");
         assistantState=shell.card(1,"正在读取助手状态…");
         shell.action(1,"开启眼镜语音待命",true,()->{if(save())sendSessionCommand("voice-standby",null);});
-        shell.action(1,"停止待命 / 取消本轮",false,()->{busy=false;sendSessionCommand("standby-off",null);});
+        shell.action(1,"停止待命 / 取消本轮",false,()->sendSessionCommand("standby-off",null));
         shell.note(1,"连接后自动待命，说“小雷小雷”开始提问。空闲时不收音、不上传、不调用模型；关闭待命会保存选择。系统强制停止 App 后需重新打开连接。");
         shell.section(1,"最近结果"); answer=shell.card(1,"尚无问答结果。眼镜提问完成后，内容会显示在这里。"); answer.setTextIsSelectable(true);
         shell.note(1,"这里显示最近结果；完整历史与上下文将在后续版本接入。");
@@ -105,7 +105,7 @@ public final class CloudActivity extends Activity {
         shell.action(1,"用当前问题查询知识库",false,()->{if(question.getText().toString().trim().isEmpty()){status.setText("请先输入问题");return;}startJob("knowledge",null);});
         shell.action(1,"测试知识库问答",false,()->startJob("knowledge-test",null));
         shell.action(1,"配置知识库与助手服务",false,()->shell.show(4));
-        shell.action(1,"取消手机问题等待",false,()->{if(jobCancellation!=null)jobCancellation.cancel();jobId=null;busy=false;status.setText("已取消本机等待；电脑端任务可能仍在结束");});
+        shell.action(1,"取消手机任务",false,()->{cancelPhoneJob();status.setText("已取消本机任务，不再继续后续请求；已提交的远端任务可能仍在结束");});
 
         notificationSettings=new NotificationSettingsUi(this,shell);
 
@@ -134,7 +134,7 @@ public final class CloudActivity extends Activity {
         shell.action(6,"‹ 返回设备",false,()->shell.show(3));shell.title(6,"开发者诊断","主动操作才会执行测试。");root=shell.pages[6];
         button("完成系统配对（首次使用）",()->sendSessionCommand("pair",null));button("连接语音数据通道（SPP）",()->sendSessionCommand("spp",null));button("开启眼镜语音唤醒",()->sendSessionCommand("wake",null));
         button("眼镜单轮问答",()->{if(save())sendSessionCommand("voice-native",null);});button("眼镜语音数据诊断",()->sendSessionCommand("voice",null));button("直接检查 8 秒麦克风（不上传）",()->sendSessionCommand("audio",null));
-        button("手机麦克风备用诊断（8 秒）",this::startPhoneVoice);button("结束手机诊断并识别",()->{if(recording!=null)recording.stop=true;});button("取消手机诊断，不上传",this::cancelRecording);
+        button("手机麦克风备用诊断（8 秒）",this::startPhoneVoice);button("结束手机诊断并识别",()->{if(recording!=null)recording.stop=true;});button("取消手机诊断与后续请求",this::cancelRecording);
         button("验证阿里云 ASR（上传预置语音）",()->startJob("sample",null));button("选择音频上传转写",()->{if(busy)return;startActivityForResult(new Intent(Intent.ACTION_OPEN_DOCUMENT).setType("audio/*").addCategory(Intent.CATEGORY_OPENABLE),31);});
         shell.note(6,"诊断结果显示在助手页；手机录音诊断不产生录音文件。");shell.action(6,"查看最近结果",false,()->shell.show(1));
         shell.show(0);
@@ -192,7 +192,7 @@ public final class CloudActivity extends Activity {
                 if ("completed".equals(saved.optString("status"))) {
                     String restored = saved.getString("text");
                     if (AnswerPolicy.canDeliver(restored)) {
-                        lastText = restored; answer.setText(renderAnswer(saved));
+                        answer.setText(renderAnswer(saved));
                         status.setText("已恢复上次 " + saved.optString("provider") + " 结果；尚未再次发送");
                     } else { status.setText("上次回答触发危险建议拦截，请重新提问"); }
                 }
@@ -222,7 +222,7 @@ public final class CloudActivity extends Activity {
         try { settings = new JSONObject(config.toString()); } catch (Exception e) { return; }
         final String prompt = kind.equals("knowledge-test")?"Rokid 正式版 spokenAnswer 和 displayAnswer 分别如何使用？请根据知识库回答。":question.getText().toString();
         final CloudClient.Cancellation cancel=new CloudClient.Cancellation();jobCancellation=cancel;
-        busy = true; lastText = ""; jobId = UUID.randomUUID().toString(); final String id = jobId;
+        busy = true; clearAnswer(); jobId = UUID.randomUUID().toString(); final String id = jobId;
         answer.setText("等待服务响应…"); status.setText(kind.startsWith("knowledge")||kind.equals("text")&&settings.optString("assistant_provider").equals("knowledge")?"正在查询远端知识库…":kind.equals("text") ? "正在请求 DeepSeek…" : "手机正在上传测试音频到阿里云…");
         worker.submit(() -> {
             JSONObject result;
@@ -230,10 +230,14 @@ public final class CloudActivity extends Activity {
                 if(kind.startsWith("knowledge"))result=KnowledgeClient.ask(settings,prompt,cancel);
                 else if (kind.equals("text")) result = CloudClient.ask(settings, prompt,cancel);
                 else {
-                    InputStream input = kind.equals("sample") ? new FileInputStream(new File(getFilesDir(), "asr-test.wav")) : getContentResolver().openInputStream(uri);
-                    byte[] audio = CloudConfig.read(input, 5 * 1024 * 1024);
-                    String mime = audio.length >= 12 && audio[0] == 'R' && audio[1] == 'I' && audio[2] == 'F' && audio[3] == 'F' ? "audio/wav" : "audio/mpeg";
-                    result = CloudClient.transcribe(settings, audio, mime);
+                    result = CloudPipeline.transcribe(cancel, c -> {
+                        c.check();
+                        InputStream input = kind.equals("sample") ? new FileInputStream(new File(getFilesDir(), "asr-test.wav")) : getContentResolver().openInputStream(uri);
+                        return CloudPipeline.read(input, 5 * 1024 * 1024, c);
+                    }, (audio,c) -> {
+                        String mime = audio.length >= 12 && audio[0] == 'R' && audio[1] == 'I' && audio[2] == 'F' && audio[3] == 'F' ? "audio/wav" : "audio/mpeg";
+                        return CloudClient.transcribe(settings, audio, mime,c);
+                    });
                 }
             } catch (Exception e) {
                 result = new JSONObject();
@@ -242,12 +246,12 @@ public final class CloudActivity extends Activity {
             final JSONObject completed = result;
             handler.post(() -> {
                 if (destroyed || !id.equals(jobId)) return;
-                busy = false;
+                busy = false;jobCancellation=null;
                 try {
                     completed.put("job_id", id).put("kind", kind).put("pid", android.os.Process.myPid()).put("sampled_at_ms", System.currentTimeMillis());
                     persist("cloud-result.json", completed);
                     if (completed.optString("status").equals("completed")) {
-                        lastText = completed.getString("text"); answer.setText(renderAnswer(completed));
+                        answer.setText(renderAnswer(completed));
                         status.setText(completed.optString("provider") + " 成功 · " + completed.optLong("elapsed_ms") + " ms · 尚未发送到眼镜");
                     } else { status.setText(completed.optString("error")); answer.setText("本次请求失败，未发送到眼镜"); }
                 } catch (Exception e) { status.setText("结果保存失败"); }
@@ -259,8 +263,19 @@ public final class CloudActivity extends Activity {
         try (FileOutputStream out = new FileOutputStream(tmp)) { out.write(value.toString(2).getBytes("UTF-8")); out.getFD().sync(); }
         if (!tmp.renameTo(new File(getFilesDir(), name))) throw new IOException("Rename failed");
     }
+    private void clearAnswer(){
+        currentAnswer=AnswerResult.empty();
+        // Do not redisplay a pre-existing glasses result after cancelling a newer phone job.
+        try{JSONObject cloud=session().optJSONObject("glasses_cloud");if(cloud!=null)displayedCloudId=cloud.optString("job_id");}catch(Exception ignored){}
+    }
+    private void cancelPhoneJob(){
+        if(jobCancellation!=null)jobCancellation.cancel();jobCancellation=null;
+        if(recording!=null)recording.cancelled=true;recording=null;
+        jobId=null;commandWait.invalidate();busy=false;clearAnswer();
+        if(answer!=null)answer.setText("本轮已取消，没有可发送的新结果。");
+    }
     private void cancelRecording() {
-        if (recording != null) { recording.cancelled = true; status.setText("正在停止录音，取消的音频不会上传"); }
+        if (recording != null) { cancelPhoneJob();status.setText("已取消手机诊断，不再发起后续请求；已提交的数据无法撤回"); }
     }
     private void startPhoneVoice() {
         if (busy || !save()) return;
@@ -276,38 +291,43 @@ public final class CloudActivity extends Activity {
                 throw new CloudClient.Failure("请先保存阿里云和 DeepSeek Key");
             settings = new JSONObject(config.toString()); sessionId = current.getString("session_id");
         } catch (Exception e) { status.setText(e instanceof CloudClient.Failure ? e.getMessage() : "无法读取录音配置"); return; }
-        busy = true; lastText = ""; final String id = jobId = UUID.randomUUID().toString();
+        final CloudClient.Cancellation cancel=new CloudClient.Cancellation();jobCancellation=cancel;
+        busy = true; clearAnswer(); final String id = jobId = UUID.randomUUID().toString();
         final PhoneRecording capture = recording = new PhoneRecording();
         answer.setText("请对着手机提问…"); status.setText("正在启动手机麦克风");
         worker.submit(() -> {
-            JSONObject outcome = new JSONObject(); byte[] wav = null;
+            JSONObject outcome = new JSONObject();
             try {
-                wav = capture.capture(this, seconds -> handler.post(() -> {
+                CloudPipeline.VoiceResult<JSONObject> result=CloudPipeline.voice(cancel, c -> {
+                byte[] wav = capture.capture(this, seconds -> handler.post(() -> {
                     if (!destroyed && id.equals(jobId) && recording == capture && !capture.cancelled)
                         status.setText("手机录音中 · " + seconds + "/8 秒 · 可提前结束或取消");
                 }));
-                handler.post(() -> { if (!destroyed && id.equals(jobId)) { recording = null; status.setText("录音已停止，阿里云正在识别…"); } });
-                if (destroyed || capture.cancelled) throw new CloudClient.Failure("录音已取消，未上传");
+                handler.post(() -> { if (!destroyed && id.equals(jobId)) status.setText("录音已停止，阿里云正在识别…"); });
+                if (destroyed || capture.cancelled) { Arrays.fill(wav,(byte)0);throw new CloudClient.Failure("录音已取消，未上传"); }
                 outcome.put("audio_bytes", wav.length).put("audio_duration_ms", (wav.length - 44) / 32)
                     .put("audio_source", "phone_builtin_mic").put("audio_saved", false);
-                JSONObject asr = CloudClient.transcribe(settings, wav, "audio/wav");
+                return wav;
+                }, (wav,c) -> CloudClient.transcribe(settings,wav,"audio/wav",c), (asr,c) -> {
                 outcome.put("asr", asr);
                 final String transcript = asr.getString("text");
                 handler.post(() -> { if (!destroyed && id.equals(jobId)) {
                     answer.setText("识别：" + transcript); status.setText("DeepSeek 正在回答…");
                 }});
                 if (destroyed) throw new CloudClient.Failure("页面已关闭，未继续请求回答");
-                JSONObject response = CloudClient.ask(settings, transcript);
+                c.check();return CloudClient.ask(settings, transcript,c);
+                });
+                JSONObject asr=result.asr,response=result.answer;
                 outcome.put("status", "completed").put("provider", "dashscope → "+response.optString("provider")).put("text", response.getString("text"))
-                    .put("llm", response).put("elapsed_ms", asr.optLong("elapsed_ms") + response.optLong("elapsed_ms"));
+                    .put("llm", response).put("answer",response).put("elapsed_ms", asr.optLong("elapsed_ms") + response.optLong("elapsed_ms"));
             } catch (Exception e) {
                 try { outcome.put("status", capture.cancelled ? "cancelled" : "failed")
                     .put("error", e instanceof CloudClient.Failure ? e.getMessage() : "录音或云请求失败，未自动重试"); } catch (Exception ignored) {}
-            } finally { if (wav != null) Arrays.fill(wav, (byte)0); }
+            }
             final JSONObject completed = outcome;
             handler.post(() -> {
                 if (destroyed || !id.equals(jobId)) return;
-                recording = null; busy = false;
+                recording = null; busy = false;jobCancellation=null;
                 try {
                     completed.put("job_id", id).put("kind", "phone_voice").put("session_id", sessionId)
                         .put("pid", android.os.Process.myPid()).put("sampled_at_ms", System.currentTimeMillis());
@@ -315,8 +335,8 @@ public final class CloudActivity extends Activity {
                     if (!"completed".equals(completed.optString("status"))) {
                         status.setText(completed.optString("error")); answer.setText(completed.has("asr") ? "识别：" + completed.getJSONObject("asr").getString("text") : "本轮没有生成回答"); return;
                     }
-                    lastText = completed.getString("text"); answer.setText("识别：" + completed.getJSONObject("asr").getString("text") + "\n\n回答：" + lastText);
-                    sendSessionCommand("notify", new JSONObject().put("title", "手机语音问答").put("content", lastText), sessionId, completed);
+                    answer.setText("识别：" + completed.getJSONObject("asr").getString("text") + "\n\n回答：" + renderAnswer(completed));
+                    sendSessionCommand("notify", new JSONObject().put("title", "手机语音问答").put("content", currentAnswer.lensText), sessionId, completed);
                 } catch (Exception e) { status.setText("语音结果保存或提交失败；未自动重试"); }
             });
         });
@@ -346,9 +366,9 @@ public final class CloudActivity extends Activity {
                 }
                 assistantState.setText(title);
                 JSONObject cloud=state.optJSONObject("glasses_cloud");
-                if(live&&cloud!=null&&"completed".equals(cloud.optString("status"))&&!cloud.optString("job_id").equals(displayedCloudId)){
+                if(!busy&&live&&cloud!=null&&"completed".equals(cloud.optString("status"))&&!cloud.optString("job_id").equals(displayedCloudId)){
                     String text=cloud.optString("text");if(AnswerPolicy.canDeliver(text)){
-                        displayedCloudId=cloud.optString("job_id");lastText=text;JSONObject asr=cloud.optJSONObject("asr");
+                        displayedCloudId=cloud.optString("job_id");JSONObject asr=cloud.optJSONObject("asr");
                         answer.setText((asr==null?"":"提问："+asr.optString("text")+"\n\n")+renderAnswer(cloud));
                     }
                 }
@@ -358,9 +378,9 @@ public final class CloudActivity extends Activity {
         handler.postDelayed(this, 2000);
     }};
     private void sendToGlasses() {
-        if (busy || lastText.isEmpty()) return;
+        if (busy || !currentAnswer.available()) return;
         try {
-            String display=lastLensText.isEmpty()?lastText:lastLensText;
+            String display=currentAnswer.lensText;
             if (display.codePointCount(0, display.length()) > 500) throw new CloudClient.Failure("结果超过 500 字，请先生成短摘要");
             sendSessionCommand("notify", new JSONObject().put("title", "助手回答").put("content", display));
         } catch (Exception e) { status.setText(e instanceof CloudClient.Failure ? e.getMessage() : "无法提交眼镜通知"); }
@@ -369,22 +389,28 @@ public final class CloudActivity extends Activity {
         sendSessionCommand(kind, notification, null, null);
     }
     private void sendSessionCommand(String kind, JSONObject notification, String expectedSession, JSONObject pipeline) {
-        if (busy) return;
+        if (!CommandWait.allows(kind,busy,false)) return;
+        if(CommandWait.interrupt(kind)){
+            if(kind.equals("stop"))cancelPhoneJob();
+            commandWait.invalidate();busy=false;
+        }
         try {
             JSONObject current = session();
             if (!isLive(current)) throw new CloudClient.Failure("请先建立持续 BLE 会话");
             if (notification != null && !AnswerPolicy.canDeliver(notification.optString("content"))) throw new CloudClient.Failure("回答触发危险建议拦截，未发送");
             if (expectedSession != null && !expectedSession.equals(current.optString("session_id"))) throw new CloudClient.Failure("录音后的连接已更换，回答未发送；可手动发送当前结果");
             JSONObject prior = current.optJSONObject("last_command");
-            if (!kind.equals("standby-off") && !kind.equals("record-stop") && ((prior != null && "pending".equals(prior.optString("status"))) || new File(getFilesDir(), "session-command.json").exists())) throw new CloudClient.Failure("上一条命令尚未完成");
+            boolean pending=(prior != null && "pending".equals(prior.optString("status"))) || new File(getFilesDir(), "session-command.json").exists();
+            if (!CommandWait.allows(kind,busy,pending)) throw new CloudClient.Failure("上一条命令尚未完成");
             String command = UUID.randomUUID().toString(), sessionId = current.getString("session_id");
             JSONObject request = new JSONObject().put("session_id", sessionId).put("command_id", command).put("kind", kind);
             if (notification != null) request.put("notification", notification);
             persist("session-command.json", request);
+            final long ticket=commandWait.begin();
             busy = true; status.setText((kind.equals("voice-cloud") || kind.equals("voice-native")) ? "请唤醒眼镜并提问；8 秒后上传阿里云识别，回答自动上屏" : kind.equals("audio") ? "直接请求 8 秒麦克风数据，只计数，不保存、不上传" : kind.equals("voice") ? "等待你唤醒眼镜；随后只检查 8 秒音频，不保存、不上传" : kind.equals("pair") ? "等待系统配对结果…" : "已提交眼镜，等待发送回调…");
             final long deadline = SystemClock.elapsedRealtime() + (kind.equals("record-stop")?180000:kind.equals("record-start")?40000:(kind.equals("voice-cloud") || kind.equals("voice-native")) ? 240000 : kind.equals("voice-standby") ? 40000 : kind.equals("voice") ? 103000 : kind.equals("pair") ? 70000 : kind.equals("spp") ? 28000 : kind.equals("audio") ? 15000 : 12000);
             handler.post(new Runnable() { public void run() {
-                if (destroyed) return;
+                if (destroyed || !commandWait.current(ticket)) return;
                 try {
                     JSONObject latest = session(), cmd = latest.optJSONObject("last_command");
                     if (!sessionId.equals(latest.optString("session_id"))) throw new CloudClient.Failure("会话已更换；发送未确认");
@@ -401,9 +427,8 @@ public final class CloudActivity extends Activity {
                         if ((kind.equals("voice-cloud") || kind.equals("voice-native"))) {
                             JSONObject cloud = latest.optJSONObject("glasses_cloud");
                             if (cloud != null && command.equals(cloud.optString("job_id"))) {
-                                lastText = cloud.optString("text");
                                 JSONObject asr = cloud.optJSONObject("asr");
-                                answer.setText((asr == null ? "" : "眼镜识别：" + asr.optString("text") + "\n\n") + lastText);
+                                answer.setText((asr == null ? "" : "眼镜识别：" + asr.optString("text") + "\n\n") + renderAnswer(cloud));
                             }
                         }
                         if (pipeline != null) { pipeline.put("delivery", cmd).put("lens_verified", false); persist("cloud-result.json", pipeline); }
@@ -428,7 +453,7 @@ public final class CloudActivity extends Activity {
     @Override protected void onStop() {
         handler.removeCallbacks(refreshLink);
         stopPlayback();
-        if (recording != null) recording.cancelled = true;
+        if (recording != null) {recording.cancelled = true;if(jobCancellation!=null)jobCancellation.cancel();}
         super.onStop();
     }
     @Override protected void onStart() {
