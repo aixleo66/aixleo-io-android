@@ -2,7 +2,7 @@
 
 # Permissions, data, and diagnostics
 
-This document describes the current 0.13 research source. Isolating diagnostic entry points does not change where data goes during user-initiated recording, transcription, or Q&A. Debug builds and user-authorized ADB state reads remain available. See [SECURITY](SECURITY.md) for implemented protections and validation limits. Update this document whenever a version changes data flows; planned privacy improvements must not be presented as existing guarantees.
+This document describes data flows on the current branch and should be read alongside the code commit you use. Isolating diagnostic entry points does not change where data goes during user-initiated recording, transcription, or Q&A. Debug builds and user-authorized ADB state reads remain available. See [SECURITY](SECURITY.md) for implemented protections and validation limits. Update this document whenever a version changes data flows; planned privacy improvements must not be presented as existing guarantees.
 
 | Data or capability | Current use and destination |
 | --- | --- |

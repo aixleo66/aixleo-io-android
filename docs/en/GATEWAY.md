@@ -2,13 +2,13 @@
 
 # Optional knowledge Gateway contract — experimental reference
 
-## Origin and scope of this version
+## Origin and repository scope
 
 This protocol comes from **Rokid Local Harness Bridge** (`rokid-local-harness-bridge`, or Rokid Harness), originally designed to connect Rokid glasses to local Codex and a knowledge base on a computer. This is why its identifier remains `rokid-harness.v1`. It is one exploratory way for the RayNeo Android client to reach local Codex, not the only approach or a required standard. More flexible integration approaches are still being explored.
 
-**This version does not contain the Rokid Harness project or its server implementation, and does not add or distribute it.** It retains only the experimental Android compatibility client (`KnowledgeClient.java`, `KnowledgeRunState.java`) and related configuration. The computer-side Gateway, Codex invocation adapter, knowledge retrieval service, tunnel launch scripts, and deployment configuration are not included.
+**The repository does not contain the Rokid Harness project or its server implementation.** It retains only the experimental Android compatibility client (`KnowledgeClient.java`, `KnowledgeRunState.java`) and related configuration. The computer-side Gateway, Codex invocation adapter, knowledge retrieval service, tunnel launch scripts, and deployment configuration are not included.
 
-This integration has not received sufficient usability or stability validation for this version. Historical development connection/Q&A attempts are not full acceptance of a deployable service. The contract below documents the existing client; it does not promise a delivered or validated Harness server. You can skip this experimental feature and configure a separate model service. Recording and notifications do not require Rokid Harness.
+This integration remains experimental. Historical experiments do not establish sufficient usability or stability validation of the current commit; see the [audit index](AUDIT.md) for recorded results. Historical development connection/Q&A attempts are not full acceptance of a deployable service. The contract below documents the existing client; it does not promise a delivered or validated Harness server. You can skip this experimental feature and configure a separate model service. Recording and notifications do not require Rokid Harness.
 
 ## Existing client protocol
 

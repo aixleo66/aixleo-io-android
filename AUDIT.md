@@ -1,8 +1,6 @@
-# 独立审核与 0.13 修复状态 · 2026-09-12
+# 审核与验证记录 / Audit records
 
-文档已按语言整理，默认阅读中文版。此入口保留原有链接。
+文档按语言整理，默认中文。Documentation is available in both languages.
 
 - [简体中文](docs/cn/AUDIT.md)
 - [English](docs/en/AUDIT.md)
-
-Documentation is organized by language. Chinese is the default; this entry preserves existing links.

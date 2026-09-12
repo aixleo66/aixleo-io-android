@@ -4,7 +4,7 @@
 
 The observer reads this app's runtime state and redraws it in a browser. It is not a lens screenshot or actual screen mirroring. A completed send does not prove that the wearer saw the content.
 
-Follow [build and setup](BUILDING.md) to configure Python and ADB, build/install the 0.13 debug APK, authorize this computer for USB debugging, and start a connection from the phone app. Keep the app session running. No APK is included in this repository, and `lab.py run --execute` does not launch the non-exported diagnostic Activities. Use the configured ADB's `adb devices` command to obtain your phone's serial number. From the repository root, run:
+Follow [build and setup](BUILDING.md) to configure Python and ADB, build/install the debug APK for your selected commit, authorize this computer for USB debugging, and start a connection from the phone app. Keep the app session running. No APK is included in this repository, and `lab.py run --execute` does not launch the non-exported diagnostic Activities. Use the configured ADB's `adb devices` command to obtain your phone's serial number. From the repository root, run:
 
 ```powershell
 python display_observer.py --serial "YOUR_PHONE_SERIAL" --port 8791 --seconds 1800

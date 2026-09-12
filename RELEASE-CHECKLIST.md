@@ -1,8 +1,6 @@
-# 0.13 源码预览范围
+# 分发范围与版本交付检查 / Delivery checks
 
-文档已按语言整理，默认阅读中文版。此入口保留原有链接。
+文档按语言整理，默认中文。Documentation is available in both languages.
 
 - [简体中文](docs/cn/RELEASE-CHECKLIST.md)
 - [English](docs/en/RELEASE-CHECKLIST.md)
-
-Documentation is organized by language. Chinese is the default; this entry preserves existing links.

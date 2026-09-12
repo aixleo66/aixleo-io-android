@@ -13,6 +13,6 @@ The root license does not cover:
 - Dependencies such as Java-WebSocket and SLF4J, which retain their own MIT licenses and copyright notices.
 - Vendor trademarks, user data, and external services.
 
-`third-party/Turbo-IO/LICENSE` preserves the upstream license text. See [Provenance](PROVENANCE.md) for the reference relationship. File-level review is unfinished; the preliminary provenance table is not a final ownership determination. The 0.13 source preview includes no APK, but an APK you build still contains vendor dependencies. That does not mean the maintainer can grant identical rights to everything inside it.
+`third-party/Turbo-IO/LICENSE` preserves the upstream license text. See [Provenance](PROVENANCE.md) for the reference relationship. File-level review is unfinished; the preliminary provenance table is not a final ownership determination. The current source preview includes no APK, but an APK you build still contains vendor dependencies. That does not mean the maintainer can grant identical rights to everything inside it.
 
 Noncommercial use, unmodified packaging, and attribution do not replace required third-party authorization. See the [upstream licensing notes](https://github.com/Turbo1123/Turbo-IO/blob/main/docs/LICENSING.md) and [PolyForm license text](https://polyformproject.org/licenses/noncommercial/1.0.0).

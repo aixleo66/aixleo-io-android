@@ -2,9 +2,9 @@
 
 # Compatibility and acceptance scope
 
-The current source preview is Android sample app 0.13. SEC-01/02 source fixes, independent review, 45 automated tests, and build checks have passed; full device regression is still pending. Neither a 0.12 nor a 0.13 APK is included.
+Compatibility conclusions are scoped to code versions, devices, operating systems, and test conditions. This page preserves existing device coverage; append new version-specific results instead of replacing version numbers in old tables. Automated tests, builds, and security regression status are tracked in the [audit index](AUDIT.md). No prebuilt APK is currently included.
 
-The table below records **historical 0.12** device results: RayNeo iO with a Xiaomi MIX Fold 4 (24072PX77C), Android 16 / API 36. The dependency baseline is official Android app 1.0.2 (68). The glasses firmware version has not been added to this public matrix. These results cannot establish compatibility with arbitrary firmware or mark all 0.13 functions as passed.
+The table below records **historical 0.12** device results: RayNeo iO with a Xiaomi MIX Fold 4 (24072PX77C), Android 16 / API 36. The dependency baseline is official Android app 1.0.2 (68). The glasses firmware version has not been added to this public matrix. These results cannot establish compatibility with arbitrary firmware or mark all functions in later versions as passed.
 
 The sample Manifest declares minimum API 29; that does not mean APIs 29–35 were all tested. Most device evidence comes from one phone and one pair of glasses. Wider coverage is needed.
 

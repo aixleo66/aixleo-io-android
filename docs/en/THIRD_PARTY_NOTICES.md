@@ -2,7 +2,7 @@
 
 # Third-party components and provenance notices (draft)
 
-This inventory describes dependencies in the 0.13 source preview. It is not proof of vendor authorization. Before publication it must match the actual source, dependencies, and build output. Listing names without preserving license texts is not complete license compliance.
+This inventory describes dependencies on the current branch and is updated when dependencies or provenance change. It is not proof of vendor authorization. Before publication it must match the actual source, dependencies, and build output. Listing names without preserving license texts is not complete license compliance.
 
 Special thanks to the original author and contributors of [Turbo1123/Turbo-IO](https://github.com/Turbo1123/Turbo-IO). The README credits the iOS project as a reference; see [Provenance](PROVENANCE.md) for specific evidence. Attribution does not replace applicable copyright and license notices.
 

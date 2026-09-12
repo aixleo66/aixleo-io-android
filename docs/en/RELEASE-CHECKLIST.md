@@ -1,25 +1,23 @@
-[简体中文](../cn/RELEASE-CHECKLIST.md) | [English](RELEASE-CHECKLIST.md)
+[简体中文](../cn/RELEASE-CHECKLIST.md) | [English](../en/RELEASE-CHECKLIST.md)
 
-# Scope of the 0.13 source preview
+# Distribution scope and delivery checks
 
-This Git repository provides source, pinned vendor dependencies, documentation, and build/test tools. No GitHub Release or installable package is being published in this round. The purpose is noncommercial research and exploration of the device's possibilities. Uploading source and publishing an APK are separate actions; this document does not preemptively mark an upload as completed.
+This is a reusable maintenance checklist, updated when distributed content or the process changes. Record actual checks, code commits, and artifact hashes in [audit records](AUDIT.md), rather than duplicating version status throughout the user guides.
 
-## Included
+## Current source distribution scope
 
-- Original 0.13 app/adapter source, local SEC-01/02 fixes, pure-logic tests, build scripts, and empty configuration templates.
-- `vendor-payload.jar`: three official DEX files and two coroutine service declarations, unchanged from the historical dependency baseline.
-- Java-WebSocket/SLF4J dependencies and licenses, Turbo IO attribution and provenance, and the original PolyForm noncommercial license text.
-- Initial setup, observer, test reproduction, Gateway contract, and compatibility documentation.
-- Explicit separation of security findings, implemented fixes, validation progress, and historical test results.
+Includes original app/adapter source, tests, build scripts, empty configuration templates, and the pinned `vendor-payload.jar` (three official DEX files and two coroutine service declarations), Java-WebSocket/SLF4J dependencies and licenses, Turbo IO references and provenance, and the original PolyForm license text. Guides cover initial setup, observer use, regression testing, the experimental Gateway, and compatibility.
 
-## Excluded
+Excludes prebuilt APKs, installable packages under `artifacts/`, the complete official APK, private signing material, Keys/Tokens, real local configurations, recordings, real questions/answers and notifications, unique device identifiers, personal knowledge bases, the Rokid Harness server, raw captures/full decompilation output, tool caches, and the historical `stream_smoke.py` that depended on private samples.
 
-Installable packages under `artifacts/`, 0.12/0.13 APKs, the complete official APK, private signing material, Keys/Tokens, local configurations, recordings, real questions/answers and notifications, unique device identifiers, personal knowledge bases, raw packet captures/full decompilation output, tool caches, and the historical `stream_smoke.py` that depended on private samples.
+Pushing source, creating a version tag, and publishing a GitHub Release are separate actions. Current delivery is source-only. Tags and Releases are handled separately when that publication is explicitly scheduled; a version number in documentation does not trigger them.
 
-## Current boundaries
+## Checks for each delivery
 
-SEC-01/02 fixes have been implemented locally; independent source review, 45 automated tests, and build checks have passed. SEC-03 debug capabilities remain. Full device regression testing is incomplete. See [SECURITY](SECURITY.md) and [AUDIT](AUDIT.md). The complete 0.12 device workflow cannot be treated as acceptance testing for 0.13.
+1. Identify the commit, distribution inventory, and version differences; update the [changelog](CHANGELOG.md). Change only the Chinese and English guides affected by behavior changes.
+2. Check source files and nested payloads for specified credential patterns, exclusions, original license texts, provenance notices, and local links.
+3. Verify pinned toolchain/vendor versions and hashes. Rerun applicable builds and tests when code or build inputs change. New snapshots need their own manifests; do not rewrite old snapshot hashes.
+4. Record automated checks, device results, and uncovered cases. Documentation-only changes can be checked for links, examples, and factual consistency, but cannot add device acceptance results. See the [test guide](TESTING.md).
+5. Update the [audit index](AUDIT.md) and retain historical evidence. Record completion only after checking the actual push or publication outcome; do not mark pending work complete.
 
-Vendor redistribution authorization and a complete file-level ownership review remain unfinished. Choosing to bundle vendor dependencies with source does not grant vendor rights under the root license. Retaining iOS attribution also does not replace license compliance.
-
-The upload directory must be checked independently for its file inventory, credential patterns inside nested payloads, licenses and provenance notices, local links, and build inputs. Record actual check and upload results in the audit record; do not mark pending work as completed.
+See [Security](SECURITY.md) for design and debug boundaries. Vendor redistribution authorization and complete file-level ownership review remain unfinished. Bundling dependencies, declaring noncommercial use, or retaining iOS attribution does not grant third-party authorization; see [Licensing](LICENSING.md). See [documentation maintenance](DOCUMENTATION.md) for document responsibilities and historical record rules.

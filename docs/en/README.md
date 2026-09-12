@@ -1,8 +1,8 @@
 [简体中文](../cn/README.md) | [English](README.md)
 
-> 0.13 noncommercial research source preview. Includes source code, pinned vendor dependencies, documentation, and build/tests. No prebuilt APK or GitHub Release is provided. Permission to redistribute the vendor components has not been verified; a noncommercial purpose does not replace permission.
+> Noncommercial research source preview. Includes source code, pinned vendor dependencies, documentation, and build/tests; no prebuilt APK is currently included. Permission to redistribute vendor components has not been verified; a noncommercial purpose does not replace permission.
 
-> SEC-01/02 have been fixed in the source. Independent source review, 45 automated tests, and build checks have passed. Full device regression testing for 0.13 is still pending. Device results from 0.12 are historical evidence only; its APK is not included. Debug capabilities remain enabled. See [security status](SECURITY.md).
+> This page describes features and usage boundaries on the current branch; it does not establish device acceptance of every feature at the current commit. See the [audit index](AUDIT.md) for version-specific completed and pending checks, the [changelog](CHANGELOG.md) for version differences, and [security](SECURITY.md) for debug capabilities and limits.
 
 # RayNeo iO Android Companion — unofficial Android SDK research
 
@@ -16,11 +16,11 @@ Users need Android development and debugging experience, their own toolchain, si
 
 The source preview includes `vendor/rayneo-venus-1.0.2-68/vendor-payload.jar`, containing three unmodified official DEX files and two coroutine service declarations. Their origin is identified separately; they are not claimed as original work or licensed by this project's root license. The repository excludes prebuilt APKs, the complete official APK, private signing keys, service credentials, and user data.
 
-**The pinned vendor dependency is included; users do not need to extract it again.** Build 0.13 with your own toolchain and signing key before installing it. This is not an implementation independent of vendor code, and compatibility with other dependency versions is not guaranteed. See [build and setup instructions](BUILDING.md).
+**The pinned vendor dependency is included; users do not need to extract it again.** Build your selected commit with your own toolchain and signing key before installing it. This is not an implementation independent of vendor code, and compatibility with other dependency versions is not guaranteed. See [build and setup instructions](BUILDING.md).
 
 ## Features and historical validation
 
-The device results below come from 0.12. Version 0.13 changes diagnostic entry points and session management and needs fresh [device regression testing](TESTING.md).
+The table summarizes implemented features and limitations. See [compatibility records](COMPATIBILITY.md) for the versions and devices associated with real-device evidence, and the [audit index](AUDIT.md) for validation status. Historical passes do not automatically cover subsequent changes.
 
 | Feature | Status and limits |
 | --- | --- |
@@ -47,7 +47,7 @@ See [permissions and privacy](PRIVACY.md).
 
 Connect only devices you own or are explicitly authorized to use. Switching from the official app may require addressing an existing binding. Official unbinding may erase glasses data and restore factory settings; read the device prompt and back up first. Do not use factory reset for routine reconnection, or let two clients compete for the same device.
 
-Install and launch from the phone app. In 0.13, `lab.py run --execute` rejects the legacy externally launched diagnostic path before installing or operating on a phone. Observer and command tools for an existing session may still read state, send messages, or call cloud services; read their parameters and effects first.
+Install and launch from the phone app. `lab.py run --execute` rejects the legacy externally launched diagnostic path before installing or operating on a phone. Observer and command tools for an existing session may still read state, send messages, or call cloud services; read their parameters and effects first.
 
 ## Current limitations
 
@@ -85,3 +85,5 @@ See [licensing scope](LICENSING.md). A statement of purpose does not replace req
 - [Provenance and attribution](PROVENANCE.md)
 - [Third-party notices](THIRD_PARTY_NOTICES.md)
 - [Licensing scope](LICENSING.md)
+- [Changelog](CHANGELOG.md)
+- [Documentation maintenance](DOCUMENTATION.md)

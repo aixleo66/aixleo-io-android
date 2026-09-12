@@ -19,3 +19,5 @@
 | [来源与致谢](cn/PROVENANCE.md) | [Provenance and attribution](en/PROVENANCE.md) |
 | [第三方说明](cn/THIRD_PARTY_NOTICES.md) | [Third-party notices](en/THIRD_PARTY_NOTICES.md) |
 | [许可范围](cn/LICENSING.md) | [Licensing scope](en/LICENSING.md) |
+| [变更记录](cn/CHANGELOG.md) | [Changelog](en/CHANGELOG.md) |
+| [文档维护约定](cn/DOCUMENTATION.md) | [Documentation maintenance](en/DOCUMENTATION.md) |

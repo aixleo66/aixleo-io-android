@@ -2,7 +2,7 @@
 
 # End-to-end test steps and evidence limits
 
-These are regression steps for a self-built 0.13 app. Existing wearer results come from 0.12; see [compatibility](COMPATIBILITY.md). SEC-01/02 source fixes, independent review, 45 automated tests, and build checks have passed, but full device regression is pending. Real recordings, questions, notifications, and raw logs are not published. Source review or automated tests do not establish device coverage across all phones/firmware.
+This is a reusable regression guide for self-built apps. It describes how to test, not proof that tests have passed. Record the code commit and artifact hash for each run. See the [audit index](AUDIT.md) for actual results and [compatibility records](COMPATIBILITY.md) for historical device coverage. Real recordings, questions, notifications, and raw logs are not published. Source review or automated tests do not establish device coverage across all phones/firmware.
 
 ## Prerequisites
 
@@ -36,4 +36,4 @@ This is not the historical internal 19-sample check, a network capture, electric
 
 For each test record: date, version/hash, phone/OS, firmware (write unknown if unknown), prerequisites, steps, protocol result, wearer observation, whether cloud services were called, anomalies, and redacted evidence. Use the [observer](OBSERVER.md), but do not treat its reconstructed view as real lens confirmation.
 
-Past problems included a missing initial device address, streaming ASR off by default, observe-only notifications not forwarding, OS background limits, follow-up timing while an answer is displayed, and capture exiting with the phone screen off. Include those conditions in testing; repeated pairing is not a substitute for diagnosis. Notification latency/bursts, long recordings, sustained power use, and process/restart recovery need dedicated validation. For 0.13, also verify normal internal connection after entry-point isolation and that failed/duplicate instances cannot clean up a live session. See [security status](SECURITY.md).
+Past problems included a missing initial device address, streaming ASR off by default, observe-only notifications not forwarding, OS background limits, follow-up timing while an answer is displayed, and capture exiting with the phone screen off. Include those conditions in testing; repeated pairing is not a substitute for diagnosis. Notification latency/bursts, long recordings, sustained power use, and process/restart recovery need dedicated validation. For changes to diagnostic entry points or session lifecycles, also verify normal internal connection after entry-point isolation and that failed/duplicate instances cannot clean up a live session. See [security mechanisms](SECURITY.md) and the [audit index](AUDIT.md) for validation status.

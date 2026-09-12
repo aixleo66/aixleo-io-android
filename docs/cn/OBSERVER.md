@@ -4,7 +4,7 @@
 
 观察台读取自有 App 的运行状态，并在浏览器重绘。它不是镜片截图或真正的屏幕镜像；“发送完成”不能证明佩戴者看到了内容。
 
-先按 [构建与首次配置](BUILDING.md) 配好 Python、ADB，自行构建并安装 0.13 调试 APK，从手机 App 启动连接。授权本机 USB 调试并保持 App 会话运行。仓库不附安装包，`lab.py run --execute` 不启动非导出的诊断 Activity。用配置中的 ADB 执行 `adb devices` 获取自己的手机序列号；在项目根目录运行：
+先按 [构建与首次配置](BUILDING.md) 配好 Python、ADB，自行构建并安装所选提交的调试 APK，从手机 App 启动连接。授权本机 USB 调试并保持 App 会话运行。仓库不附安装包，`lab.py run --execute` 不启动非导出的诊断 Activity。用配置中的 ADB 执行 `adb devices` 获取自己的手机序列号；在项目根目录运行：
 
 ```powershell
 python display_observer.py --serial "替换为手机序列号" --port 8791 --seconds 1800
