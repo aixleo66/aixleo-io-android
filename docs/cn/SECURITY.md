@@ -26,3 +26,6 @@
 目前没有专用的私密漏洞反馈渠道。请先通过已有的维护者联系方式沟通，或在 Issue 中说明问题类型；不要公开可用凭据、个人数据或敏感利用细节。
 
 Android 官方依据：[导出组件风险](https://developer.android.com/privacy-and-security/risks/android-exported)、[可调试应用风险](https://developer.android.com/privacy-and-security/risks/android-debuggable)。
+
+
+客户端还有本地回答规则拦截（`AnswerPolicy`），仅覆盖少量特定模式，不是完整内容安全系统，也不代表模型无法产生其他不适宜回答。命令行诊断的网络与设备副作用见[工具说明](TOOLS.md)。

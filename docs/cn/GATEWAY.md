@@ -23,7 +23,8 @@
 {"type":"sync","protocol":"rokid-harness.v1"}
 {"type":"prompt","prompt":"用户问题","capability":"read"}
 {"type":"event","runId":"example-run","seq":1,"event":{"type":"system"}}
-{"type":"event","runId":"example-run","seq":2,"event":{"type":"result","displayAnswer":"完整回答","spokenAnswer":"简短回答","sources":[{"path":"notes/example.md","title":"资料标题"}]}}
+{"type":"event","runId":"example-run","seq":2,"event":{"type":"sources","status":"matched","sources":[{"path":"notes/example.md","title":"资料标题"}]}}
+{"type":"event","runId":"example-run","seq":3,"event":{"type":"result","displayAnswer":"完整回答","spokenAnswer":"简短回答","sources":[{"path":"notes/example.md","title":"资料标题"}]}}
 {"type":"runEnd","runId":"example-run","status":"done"}
 ```
 
@@ -34,3 +35,7 @@
 客户端收到 runId 后若断线，最多重连一次，在 hello 附加 `lastRunId` 和 `lastSeq`，要求服务端支持续传；不会自动重新提交 prompt。鉴权/协议错误、拒绝或执行 error 会失败；整次请求有 150 秒期限。空闲时客户端不保持知识库连接。
 
 本地取消关闭等待和连接，但当前客户端没有向服务端发送任务取消命令，因此不能保证电脑端立即停止运行或停止计费。服务端需自行管理断连和任务生命周期。`capability: read` 是请求约定，权限必须由服务端执行；手机不会展示或代替用户批准电脑端写入、命令执行等高权限操作。
+
+检索状态来自独立的 `sources` 事件：`matched` 必须带非空 `sources` 数组，`no_match` 必须是空数组。缺失或格式不符合此规则时记为 `unknown`，即使最终 result 有引用也不会推定检索命中。`result.sources` 则是最终引用列表，两者不能互相代替。手机会显示未知/未命中提示。
+
+镜片默认显示不超过 500 个 Unicode 码点的完整回答；更长时改用 spokenAnswer（最多取 470 码点）并提示到手机查看全文与来源。因此不能把手机完整结果等同于镜片全文显示。

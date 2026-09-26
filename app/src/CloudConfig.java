@@ -36,7 +36,19 @@ final class CloudConfig {
             .put("dashscope_model", "qwen3-asr-flash").put("dashscope_key", "").put("glasses_address", "")
             .put("streaming_asr", false).put("dashscope_stream_model", "qwen3-asr-flash-realtime")
             .put("dashscope_stream_url", "wss://dashscope.aliyuncs.com/api-ws/v1/realtime")
-            .put("knowledge_url", "").put("knowledge_token", "").put("assistant_provider", "deepseek");
+            .put("dashscope_text_model", "qwen-plus")
+            .put("knowledge_url", "").put("knowledge_token", "").put("assistant_provider", "deepseek")
+            .put("assistant_auto_exit_seconds", 15).put("assistant_followup_seconds", 10)
+            // Keep every default that SdkProbeActivity also names in an optInt fallback in
+            // step with that fallback: load() copies these into any stored configuration, so
+            // a value here silently wins and the fallback becomes dead code.
+            .put("assistant_display_wait_seconds", 60)
+            .put("assistant_followup_enabled", true)
+            // Recording length cap. 5 minutes was hard-coded and never had a reason behind it;
+            // the official app shows no such limit in its settings and offers trimming, which
+            // implies long recordings are expected. Kept configurable rather than removed:
+            // free space is only checked once, when the recording starts.
+            .put("recording_max_minutes", 30);
     }
     static JSONObject load(Context context) throws Exception {
         File seed = new File(context.getFilesDir(), "cloud-import.json");
@@ -52,9 +64,18 @@ final class CloudConfig {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding");
         cipher.init(Cipher.DECRYPT_MODE, key(), new GCMParameterSpec(128, java.util.Arrays.copyOf(data, 12)));
         JSONObject loaded = new JSONObject(new String(cipher.doFinal(data, 12, data.length - 12), "UTF-8"));
+        // A value equal to a since-retired default was inherited, not chosen (09-23 config drift).
+        // Done once per MIGRATION bump, then written back with the marker, so a value chosen
+        // afterwards survives. The marker lives in the config itself (not a default, so it is kept).
+        boolean migrate = loaded.optInt(ConfigPersistence.MARKER, 0) < ConfigPersistence.MIGRATION;
+        if (migrate) { ConfigPersistence.dropRetiredDefaults(loaded); loaded.put(ConfigPersistence.MARKER, ConfigPersistence.MIGRATION); }
         JSONObject defaults = defaults();
         for (java.util.Iterator<String> names = defaults.keys(); names.hasNext();) {
             String name = names.next(); if (!loaded.has(name)) loaded.put(name, defaults.get(name));
+        }
+        if (migrate) {
+            // A failed write leaves the marker unset and retries next load; never block reading.
+            try { save(context, loaded); } catch (Exception unsaved) {}
         }
         return mergeKnowledgeImport(context,loaded);
     }
@@ -73,7 +94,13 @@ final class CloudConfig {
         Cipher cipher = Cipher.getInstance("AES/GCM/NoPadding"); cipher.init(Cipher.ENCRYPT_MODE, key());
         File tmp = new File(context.getFilesDir(), "cloud-config.tmp");
         try (FileOutputStream out = new FileOutputStream(tmp)) {
-            out.write(cipher.getIV()); out.write(cipher.doFinal(value.toString().getBytes("UTF-8"))); out.getFD().sync();
+            // Only values that differ from today's defaults are stored, so a later default change
+            // reaches every key the user never set (09-23 config drift; see ConfigPersistence).
+            JSONObject stored = ConfigPersistence.sparse(value, defaults());
+            // Anything this code writes needs no retired-default migration; only files written
+            // before the marker existed do (otherwise a 60 picked today would be undone next load).
+            stored.put(ConfigPersistence.MARKER, ConfigPersistence.MIGRATION);
+            out.write(cipher.getIV()); out.write(cipher.doFinal(stored.toString().getBytes("UTF-8"))); out.getFD().sync();
         }
         if (!tmp.renameTo(new File(context.getFilesDir(), "cloud-config.enc"))) throw new IOException("Configuration save failed");
     }

@@ -1,0 +1,93 @@
+package dev.xr.rayneo.probe;
+import android.content.Context;
+import android.os.*;
+import java.io.*;
+import java.lang.reflect.*;
+import java.util.concurrent.*;
+import org.json.*;
+
+/** Real production preparation and release callbacks; only platform/vendor edges are spies. */
+public final class RecordingTransportCheck extends Context {
+    final JSONObject result=new JSONObject();final Handler handler=new Handler();final RuntimeEdge runtime=new RuntimeEdge();
+    final D targetDevice=new D();GlassesRecorder recorder;
+    boolean recordingPreparing,recordingTransportOwned,sppRequested,voiceRecording,voicePreparing,standbyEnabled,voiceArmed,finished,finishing;
+    boolean traceStageThrows;int starts;
+    String pendingDeviceRecordingId,recordingNotificationPhase="",activeCommand="command",activeCommandKind="record-start";
+    long recordingTransportGeneration,nextStandbyAttempt,startedAt;
+    public RecordingTransportCheck(File files)throws Exception{super(files);files.mkdirs();result.put("session_id","fixture").put("last_command",new JSONObject().put("status","pending"));L.calls=0;L.opens=0;L.throwClose=false;}
+    public String getPackageName(){return "dev.xr.rayneo.sdklab";}
+    boolean connectionReady(){return true;}
+    void stopStandby(){standbyEnabled=false;voiceArmed=false;}
+    // Not a no-op stub: when standby comes back relative to the recording ending is exactly what
+    // this fixture must be able to observe. Mirrors the production guard that matters here — a busy
+    // recorder or an in-flight preparation blocks it, a still-claimed transport does not.
+    int standbyRestores;
+    void restoreStandbyIfNeeded()throws Exception{
+        if(standbyEnabled||recordingPreparing||(recorder!=null&&recorder.busy()))return;
+        if(android.os.SystemClock.elapsedRealtime()<nextStandbyAttempt)return;
+        standbyEnabled=true;standbyRestores++;
+    }
+    void publishVoiceRecording(JSONObject state){}
+    void sendBusiness(String service,int type,JSONObject body,String id){if(type==1)starts++;}
+    void stage(String name,Object value){if(traceStageThrows&&name.equals("recording_transport"))throw new RuntimeException("diagnostic write failed");}
+    static Object field(Object target,String name)throws Exception{return target.getClass().getField(name).get(target);}
+    public static class D{public String a="fixture-device";}
+    public static class B{public static final B c=new B();}
+    public static class L{static int opens,calls;static boolean throwClose;public static boolean f(D d){opens++;return true;}public static void i(String address,B channel){if(throwClose)throw new IllegalStateException("vendor close failed");calls++;}}
+    static class RuntimeEdge{Class<?> type(String n){switch(n){case "I3.L":return L.class;case "I3.D":return D.class;case "S3.B":return B.class;default:throw new IllegalArgumentException(n);}}}
+    // PRODUCTION_METHODS
+    static Object get(Object obj,String name)throws Exception{Field f=obj.getClass().getDeclaredField(name);f.setAccessible(true);return f.get(obj);}
+    static void set(Object obj,String name,Object value)throws Exception{Field f=obj.getClass().getDeclaredField(name);f.setAccessible(true);f.set(obj,value);}
+    static void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
+    void terminal()throws Exception{set(recorder,"phase","saved");set(recorder,"receiving",false);((GlassesRecorder.Host)get(recorder,"host")).changed(recorder.state());}
+    void closeFixture()throws Exception{if(recorder!=null){recorder.close();((ThreadPoolExecutor)get(recorder,"io")).awaitTermination(4,TimeUnit.SECONDS);}}
+    void prepared(boolean prebuilt)throws Exception{
+        sppRequested=prebuilt;result.put("spp_auth_success_callback",prebuilt);prepareRecordingTask((String)null);
+        if(!prebuilt){check(L.opens==1&&recordingTransportOwned,"owned request missing");result.put("spp_auth_success_callback",true);handler.runReady();}
+        RecorderLifecycleCheck.until(handler,()->starts==1);
+    }
+    public static void main(String[] args)throws Exception{
+        for(String scenario:new String[]{"prebuilt","owned","prep-timeout","prep-cancelled","session-release-error","trace-error"}){
+            RecordingTransportCheck h=new RecordingTransportCheck(new File(args[1],scenario));
+            try{
+                if(scenario.equals("session-release-error")){
+                    // Session cleanup is the only handback left. A vendor failure there must not
+                    // pretend the channel is gone, or the next session skips its own cleanup.
+                    h.recordingTransportOwned=true;h.sppRequested=true;L.throwClose=true;
+                    check(!h.submitTransportRelease("session_cleanup_spp"),"failed release reported success");
+                    check(h.recordingTransportOwned&&h.sppRequested&&L.calls==0,"failed release erased ownership");
+                    check(h.result.getJSONObject("recording_transport").getString("event").equals("session_cleanup_spp_error"),"missing release error trace");
+                }else if(scenario.equals("prep-timeout")||scenario.equals("prep-cancelled")){
+                    // Preparation gave up. Before option 甲 both paths handed the channel back,
+                    // which is the same call that stranded the glasses on "请将眼镜连接至雷鸟AI".
+                    h.prepareRecordingTask((String)null);
+                    check(L.opens==1&&h.recordingTransportOwned&&h.sppRequested,"preparation did not claim the channel");
+                    if(scenario.equals("prep-timeout"))h.handler.advance(20001);
+                    else h.cancelRecordingPreparation(null);
+                    check(!h.recordingPreparing,"preparation still active");
+                    check(L.calls==0,"giving up on a recording handed the channel back");
+                    check(!h.recordingTransportOwned,"a finished preparation still claims the transport");
+                    check(h.sppRequested,"the channel must stay claimed for the session");
+                }else{
+                    h.traceStageThrows=scenario.equals("trace-error");boolean prebuilt=scenario.equals("prebuilt");h.prepared(prebuilt);
+                    if(prebuilt)check(L.opens==0&&!h.recordingTransportOwned,"prebuilt channel claimed or reopened");
+                    h.terminal();
+                    // 2026-09-21, the defect option 甲 removes: the recording landed and the app
+                    // handed SPP back 1500ms later, so the glasses asked to be connected to the
+                    // official app and answered nothing the user said next. Standby must be back at
+                    // "saved", and the channel must simply stay up.
+                    check(h.standbyEnabled,"standby not restored at saved: a wake here would be dropped");
+                    check(h.standbyRestores==1,"standby restored "+h.standbyRestores+" times at saved, expected exactly 1");
+                    check(!h.recordingTransportOwned,"a finished recording still claims the transport");
+                    // Well past the old 1500ms delay.
+                    h.handler.advance(5000);
+                    check(L.calls==0,"the recording handed the SPP channel back");
+                    check(h.sppRequested,"the channel stopped being claimed for the session");
+                    check(h.standbyRestores==1,"standby restored again after the recording ended");
+                }
+                System.out.println("production transport "+scenario+" passed");
+            }finally{h.closeFixture();}
+        }
+    }
+}
+class ConnectionService{static void recordingState(Context context,String phase){}}

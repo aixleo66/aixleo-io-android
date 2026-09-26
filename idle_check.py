@@ -20,12 +20,14 @@ def compare(before, after, elapsed):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--serial', required=True)
+    parser.add_argument('--profile', choices=('daily', 'sdk-lab'), default='sdk-lab')
     parser.add_argument('--seconds', type=int, default=60, choices=range(10, 1801), metavar='10..1800')
     args = parser.parse_args()
-    settings = lab.settings(); start = session.snapshot(settings, args.serial)
+    package = lab.LAB_PACKAGE if args.profile == 'sdk-lab' else lab.PACKAGE
+    settings = lab.settings(); start = session.snapshot(settings, args.serial, package=package)
     now = time.monotonic(); print('Idle check running; no Bluetooth commands are sent.', flush=True)
     time.sleep(args.seconds)
-    finish = session.snapshot(settings, args.serial)
+    finish = session.snapshot(settings, args.serial, package=package)
     result = compare(start, finish, round(time.monotonic() - now, 3))
     target = lab.fresh_output_dir('power-tests') / 'idle-check.json'
     lab.write_json(target, {'check': result, 'before': start, 'after': finish})

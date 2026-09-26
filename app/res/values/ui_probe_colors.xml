@@ -1,0 +1,5 @@
+<resources>
+  <!-- Stage 3.0 build probe: proves values resources reach both layouts and R.color. -->
+  <color name="ui_probe_background">#101722</color>
+  <color name="ui_probe_text">#EDF2FC</color>
+</resources>

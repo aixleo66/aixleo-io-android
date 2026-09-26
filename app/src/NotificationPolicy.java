@@ -15,7 +15,17 @@ final class NotificationPolicy {
         }
         return out.toString().trim();
     }
-    static boolean eligible(boolean enabled,boolean selected,boolean ongoing,boolean groupSummary,boolean silent,boolean includeSilent){
-        return enabled&&selected&&!ongoing&&!groupSummary&&(!silent||includeSilent);
+    /** backgroundService identifies a foreground-service flag or service category.
+     * Reject matching notices in addition to the existing ongoing, summary and silent filters.
+     * A visible "running" message alone does not establish which flags/category it carries. */
+    static boolean eligible(boolean enabled,boolean selected,boolean ongoing,boolean groupSummary,boolean silent,boolean includeSilent,boolean backgroundService){
+        return enabled&&selected&&!ongoing&&!groupSummary&&!backgroundService&&(!silent||includeSilent);
     }
+    /** Foreground-service notification: the system flag, or the app's own "service" category. */
+    static boolean backgroundService(int flags,String category){
+        return (flags&FLAG_FOREGROUND_SERVICE)!=0||CATEGORY_SERVICE.equals(category);
+    }
+    /** android.app.Notification values, repeated so this class stays plain Java for the off-device check. */
+    static final int FLAG_FOREGROUND_SERVICE=0x40;
+    static final String CATEGORY_SERVICE="service";
 }

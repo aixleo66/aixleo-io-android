@@ -1,22 +1,47 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.xr.rayneo.probe" android:versionCode="14" android:versionName="0.14-interaction-fixes">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="dev.xr.rayneo.probe" android:versionCode="18" android:versionName="0.18-native-recording">
   <uses-sdk android:minSdkVersion="29" android:targetSdkVersion="36" />
   <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
   <uses-permission android:name="android.permission.BLUETOOTH_SCAN" android:usesPermissionFlags="neverForLocation" />
   <uses-permission android:name="android.permission.INTERNET" />
+  <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+  <!-- As the official app (com.rayneo.venus.pub holds it granted on the test phone): lets a service
+       rebuilt in the background keep the location type for weather ("始终允许"). 09-23. -->
+  <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+  <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+  <uses-permission android:name="android.permission.WAKE_LOCK" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.RECORD_AUDIO" />
+  <uses-feature android:name="android.software.companion_device_setup" />
+  <uses-permission android:name="android.permission.REQUEST_COMPANION_RUN_IN_BACKGROUND" />
+  <uses-permission android:name="android.permission.REQUEST_COMPANION_USE_DATA_IN_BACKGROUND" />
+  <uses-permission android:name="android.permission.REQUEST_COMPANION_START_FOREGROUND_SERVICES_FROM_BACKGROUND" />
+  <uses-permission android:name="android.permission.REQUEST_OBSERVE_COMPANION_DEVICE_PRESENCE" />
+  <!-- 0.5d, as the official app: reconnect after a phone restart; ask for battery "不限制" in-app. -->
+  <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+  <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
   <queries><intent><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent></queries>
-  <application android:label="Aixleo iO Android" android:debuggable="true" android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@android:style/Theme.Material.Light.NoActionBar">
-    <service android:name=".PhoneNotifications" android:exported="true" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:label="Aixleo iO Android · 消息提示">
+  <application android:label="AIX IO" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher" android:debuggable="true" android:allowBackup="false" android:usesCleartextTraffic="false" android:theme="@style/CompanionDark">
+    <service android:name=".PhoneNotifications" android:exported="true" android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE" android:label="AIX IO · 消息提示">
       <intent-filter><action android:name="android.service.notification.NotificationListenerService"/></intent-filter>
     </service>
-    <service android:name=".ConnectionService" android:exported="false" android:foregroundServiceType="connectedDevice" />
+    <service android:name=".CompanionPresence" android:exported="true" android:permission="android.permission.BIND_COMPANION_DEVICE_SERVICE">
+      <intent-filter><action android:name="android.companion.CompanionDeviceService"/></intent-filter>
+    </service>
+    <service android:name=".ConnectionService" android:exported="false" android:foregroundServiceType="connectedDevice|location" />
+    <receiver android:name=".ConnectionService$WeatherAlarm" android:exported="false" />
+    <receiver android:name=".AutoReconnect" android:exported="false" />
+    <receiver android:name=".BootReconnect" android:exported="false">
+      <intent-filter><action android:name="android.intent.action.BOOT_COMPLETED"/></intent-filter>
+    </receiver>
     <activity android:name=".ObserveActivity" android:exported="false" />
-    <activity android:name=".SdkProbeActivity" android:exported="false" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize" />
+    <activity android:name=".TodoActivity" android:exported="false" />
+    <activity android:name=".WeatherActivity" android:exported="false" />
     <activity android:name=".ProbeActivity" android:exported="false" />
     <activity android:name=".StreamSmokeActivity" android:exported="false" />
+    <!-- Stage 3.0 build probe (XML layout + R.* + subpackage); no entry point opens it. -->
+    <activity android:name=".ui.UiProbeActivity" android:exported="false" />
     <activity android:name=".CloudActivity" android:exported="true" android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize">
       <intent-filter><action android:name="android.intent.action.MAIN"/><category android:name="android.intent.category.LAUNCHER"/></intent-filter>
     </activity>

@@ -21,3 +21,16 @@
 | [许可范围](cn/LICENSING.md) | [Licensing scope](en/LICENSING.md) |
 | [变更记录](cn/CHANGELOG.md) | [Changelog](en/CHANGELOG.md) |
 | [文档维护约定](cn/DOCUMENTATION.md) | [Documentation maintenance](en/DOCUMENTATION.md) |
+
+
+## 能力与开发入口 / Capabilities and developer entries
+
+| 简体中文 | English |
+| --- | --- |
+| [AI 开发入口](../AGENTS.md) | [Coding-agent entry](../AGENTS.md) |
+| [开发路线与踩坑](cn/DEVELOPMENT.md) | [Development guide and pitfalls](en/DEVELOPMENT.md) |
+| [能力清单与参数](cn/CAPABILITY-MAP.md) | [Developer capability map](en/CAPABILITY-MAP.md) |
+| [命令行工具](cn/TOOLS.md) | [CLI tools](en/TOOLS.md) |
+| [功能验证矩阵](cn/FEATURES-0.2.1.md) | [Feature matrix (Chinese)](cn/FEATURES-0.2.1.md) |
+| [官方能力参考](cn/DEVICE-CAPABILITIES.md) | [Official UI capability reference (Chinese)](cn/DEVICE-CAPABILITIES.md) |
+| [排查指南](cn/TROUBLESHOOTING.md) | [Troubleshooting (Chinese)](cn/TROUBLESHOOTING.md) |

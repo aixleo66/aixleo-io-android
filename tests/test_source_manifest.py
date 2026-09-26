@@ -47,3 +47,14 @@ class SourceManifestChecks(unittest.TestCase):
     def test_missing_commit_is_reported_without_network_access(self):
         with self.assertRaises(ValueError):
             verify_source.verify(self.root, 'missing-local-ref')
+
+    def test_source_archive_can_be_verified_without_git(self):
+        result = verify_source.verify_worktree(self.root)
+        self.assertEqual(result['matched'], 1)
+        (self.root / 'example.java').write_bytes(b'changed\n')
+        self.assertEqual(verify_source.verify_worktree(self.root)['mismatches'], ['example.java'])
+
+    def test_clean_distribution_flags_unlisted_files(self):
+        self.assertEqual(verify_source.verify_distribution(self.root)['unexpected'], [])
+        (self.root / 'config.local.json').write_text('local', encoding='utf-8')
+        self.assertEqual(verify_source.verify_distribution(self.root)['unexpected'], ['config.local.json'])

@@ -23,7 +23,8 @@ Minimum successful exchange, with placeholders for credentials and content:
 {"type":"sync","protocol":"rokid-harness.v1"}
 {"type":"prompt","prompt":"User question","capability":"read"}
 {"type":"event","runId":"example-run","seq":1,"event":{"type":"system"}}
-{"type":"event","runId":"example-run","seq":2,"event":{"type":"result","displayAnswer":"Full answer","spokenAnswer":"Short answer","sources":[{"path":"notes/example.md","title":"Source title"}]}}
+{"type":"event","runId":"example-run","seq":2,"event":{"type":"sources","status":"matched","sources":[{"path":"notes/example.md","title":"Source title"}]}}
+{"type":"event","runId":"example-run","seq":3,"event":{"type":"result","displayAnswer":"Full answer","spokenAnswer":"Short answer","sources":[{"path":"notes/example.md","title":"Source title"}]}}
 {"type":"runEnd","runId":"example-run","status":"done"}
 ```
 
@@ -34,3 +35,7 @@ Questions must contain 1–2000 characters. `displayAnswer` and `spokenAnswer` m
 After learning the `runId`, the client reconnects at most once on transport loss, adding `lastRunId` and `lastSeq` to `hello`. The server must support replay/resumption. The client does not automatically resubmit the prompt. Authentication errors, protocol errors, rejection, or an execution `error` fail the request. The overall deadline is 150 seconds. The client keeps no knowledge-service connection open while idle.
 
 Local cancellation closes the connection and stops waiting, but the client currently sends no task-cancellation command to the server. It cannot guarantee that the computer stops execution or charging immediately. The server must manage disconnections and task lifetime. `capability: read` is a request convention; the server must enforce permissions. The phone does not present or approve privileged computer-side actions such as writes or command execution on the user's behalf.
+
+Retrieval state comes from a separate `sources` event: `matched` requires a nonempty sources array; `no_match` requires an empty array. Missing or inconsistent events produce `unknown`, even if the final result has citations. `result.sources` contains final citations and cannot substitute for retrieval state. Unknown/no-match notices are displayed by the client.
+
+The glasses receive the full answer only up to 500 Unicode code points. Longer answers use spokenAnswer, capped at 470 code points, plus a notice to read the complete answer and sources on the phone. A full phone result does not imply full text on the glasses.

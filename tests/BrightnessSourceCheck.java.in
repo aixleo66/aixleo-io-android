@@ -1,0 +1,61 @@
+package dev.xr.rayneo.probe;
+
+import org.json.JSONObject;
+
+/** Brightness reaches the UI on two channels that age independently: the type1 status snapshot,
+ * which only refreshes when something asks, and the brightness_change the glasses push when the
+ * firmware moves the level itself. Showing the stale one is how a firmware adjustment was read as
+ * a failed write on 2026-09-16 (G02). This pins which source wins. */
+final class BrightnessSourceCheck {
+    // PRODUCTION_METHODS
+    // PRODUCTION_METHODS_2
+
+    static void check(boolean ok, String label) { if (!ok) throw new AssertionError(label); }
+
+    public static void main(String[] args) throws Exception {
+        JSONObject status = new JSONObject().put("brightness", 7);
+
+        JSONObject snapshotOnly = new JSONObject().put("reported_status_at_ms", 1000L);
+        check(newerBrightness(snapshotOnly, status) == 7, "snapshot alone");
+
+        // The 7->5 case: the firmware moved the level and pushed it, the snapshot still says 7.
+        JSONObject pushNewer = new JSONObject().put("reported_status_at_ms", 1000L)
+            .put("glasses_brightness", new JSONObject().put("at_ms", 2000L).put("brightness", 5));
+        check(newerBrightness(pushNewer, status) == 5, "newer push wins");
+
+        // An older push must not beat a fresh read-back, or every write would appear to revert
+        // the instant it completed.
+        JSONObject pushOlder = new JSONObject().put("reported_status_at_ms", 3000L)
+            .put("glasses_brightness", new JSONObject().put("at_ms", 2000L).put("brightness", 5));
+        check(newerBrightness(pushOlder, status) == 7, "older push loses");
+
+        JSONObject pushOnly = new JSONObject()
+            .put("glasses_brightness", new JSONObject().put("at_ms", 2000L).put("brightness", 4));
+        check(newerBrightness(pushOnly, null) == 4, "push alone");
+
+        // Nothing reported must stay unreported. Defaulting to 7 here is exactly what made a
+        // missing reading indistinguishable from the factory value.
+        check(newerBrightness(new JSONObject(), null) == null, "nothing reported must be null");
+        check(newerBrightness(null, null) == null, "null state must be null");
+        check(newerBrightness(new JSONObject(), new JSONObject().put("brightness", "7")) == null,
+            "a string is not a level");
+
+        // pushWins decides whether the card may say "眼镜自调" -- it must agree with which number
+        // newerBrightness returned, or the label describes a value it did not come from.
+        check(!pushWins(snapshotOnly, status), "snapshot alone is not a push");
+        check(pushWins(pushNewer, status), "newer push wins");
+        check(!pushWins(pushOlder, status), "older push does not win");
+        check(pushWins(pushOnly, null), "push alone wins");
+        check(!pushWins(new JSONObject(), null), "nothing reported is not a push");
+        check(!pushWins(null, status), "null state is not a push");
+        // A push carrying no level must never win, however fresh it is: it is not a reading.
+        JSONObject levellessPush = new JSONObject().put("reported_status_at_ms", 1000L)
+            .put("glasses_brightness", new JSONObject().put("at_ms", 9000L).put("lux", 3.2));
+        check(!pushWins(levellessPush, status), "a push without a level is not a reading");
+        check(newerBrightness(levellessPush, status) == 7, "levelless push must not hide the snapshot");
+
+        System.out.println("brightness source checks passed");
+    }
+
+    private BrightnessSourceCheck() {}
+}

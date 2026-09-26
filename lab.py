@@ -20,6 +20,7 @@ import xml.etree.ElementTree as ET
 
 ROOT = Path(__file__).resolve().parent
 PACKAGE = 'dev.xr.rayneo.probe'
+LAB_PACKAGE = 'dev.xr.rayneo.sdklab'
 SAMPLE_HASH = '32c67abbdf3c87eb113f965f984b79eee17b4bf3136f14f535375752ab1a7093'
 PAYLOAD_HASH = 'd1d54046ed811e0bfb965f30a051a5bd4f3342760c3c69cc3aaca32424860f9f'
 PAYLOAD_ENTRIES = [
@@ -170,7 +171,7 @@ def bootstrap(offline=False):
         if not (target / item['sentinel']).is_file():
             print('Extracting ' + item['archive'], flush=True)
             safe_extract(archive, target)
-    return {'status': 'tools_prepared', 'note': '工具已准备；研究候选包可用随包 payload，请配置自己的本地调试签名。private-check 仅用于原私有迁移环境'}
+    return {'status': 'tools_prepared', 'note': '工具已准备；研究候选包可用随包 payload，请配置自己的本地调试签名。private-check 仅供持有自有私有文件清单的维护者使用'}
 
 
 def check_private():
@@ -220,14 +221,25 @@ def verify(s, output):
         r = command([tool(s, 'java'), '-jar', s['build_tools'] / 'lib/apksigner.jar',
                      'verify', '--verbose', '--print-certs', check_apk])
         alignment = command([s['build_tools'] / ('zipalign' + s['exe']), '-c', '-p', '4', check_apk])
+        badging = command([s['build_tools'] / ('aapt2' + s['exe']), 'dump', 'badging', check_apk]).stdout.decode('utf-8', errors='replace')
+        actual_package = re.search(r"^package: name='([^']+)'", badging, re.M)
+        expected_package = bm.get('application_id', PACKAGE)
+        if not actual_package or actual_package.group(1) != expected_package:
+            raise RuntimeError('实际 APK 包名与构建清单不符')
+        if bm.get('profile') == 'sdk-lab' and (expected_package != LAB_PACKAGE or
+                "launchable-activity: name='dev.xr.rayneo.probe.SdkLabActivity'" not in badging):
+            raise RuntimeError('独立调试包身份或启动入口不符')
     report = {'apk_sha256': digest(apk), 'original_entries_verified': PAYLOAD_ENTRIES,
               'signature_exit_code': r.returncode, 'alignment_exit_code': alignment.returncode,
-              'signature_output': r.stdout.decode('utf-8', errors='replace'), 'device_tested': False}
+              'signature_output': r.stdout.decode('utf-8', errors='replace'),
+              'application_id': expected_package, 'device_tested': False}
     write_json(output / 'verification.json', report)
     return report
 
 
-def build(s):
+def build(s, profile='sdk-lab'):
+    if profile not in ('daily', 'sdk-lab'):
+        raise ValueError('Unknown build profile')
     readiness = doctor(s)
     if not readiness['build_ready']:
         raise RuntimeError('构建环境不齐；查看 out/doctor.json。请配置自己的本地调试签名；不自动覆盖或创建签名')
@@ -235,15 +247,95 @@ def build(s):
     # Fresh ASCII workspace avoids stale classes and Windows Unicode path issues.
     with build_workspace() as tmp:
         output = Path(tmp)
-        build_in_workspace(s, output)
+        build_in_workspace(s, output, profile)
         shutil.copytree(output, destination, dirs_exist_ok=True)
     verify(s, destination)
-    write_json(ROOT / 'out/latest-build.json', {'directory': destination.relative_to(ROOT).as_posix()})
+    pointer = 'latest-sdk-lab-build.json' if profile == 'sdk-lab' else 'latest-build.json'
+    write_json(ROOT / 'out' / pointer, {'directory': destination.relative_to(ROOT).as_posix()})
     return {'status': 'build_verified', 'output': str(destination),
             'apk_sha256': digest(destination / 'rayneo-init-probe.apk'), 'device_tested': False}
 
 
-def build_in_workspace(s, output):
+def lab_version():
+    value = read_json(ROOT / 'app/lab-version.json')
+    code, name = value.get('versionCode'), value.get('versionName')
+    if not isinstance(code, int) or isinstance(code, bool) or code < 1 or not isinstance(name, str) or not name.strip():
+        raise ValueError('app/lab-version.json 需要正整数 versionCode 与非空 versionName')
+    return {'versionCode': code, 'versionName': name}
+
+
+def write_build_manifest(source, destination, profile):
+    """Keep the daily manifest byte-identical; lab has separate app/data identity."""
+    if profile == 'daily':
+        shutil.copyfile(source, destination)
+        return PACKAGE
+    if profile != 'sdk-lab':
+        raise ValueError('Unknown build profile')
+    ns = '{http://schemas.android.com/apk/res/android}'
+    ET.register_namespace('android', ns[1:-1])
+    tree = ET.parse(source)
+    root = tree.getroot()
+    if root.get('package') != PACKAGE:
+        raise ValueError('Unexpected source package')
+    root.set('package', LAB_PACKAGE)
+    # 09-23 plan 0.4: one place defines the Lab version; it used to be two literals here.
+    version = lab_version()
+    root.set(ns + 'versionCode', str(version['versionCode']))
+    root.set(ns + 'versionName', version['versionName'])
+    app = root.find('application')
+    app.set(ns + 'label', 'AIX IO SDK Lab')
+    for component in app:
+        name = component.get(ns + 'name', '')
+        if name.startswith('.'):
+            component.set(ns + 'name', PACKAGE + name)
+        # Only the isolated home is exported; no shell launch into connection code.
+        if component.tag == 'activity':
+            component.set(ns + 'exported', 'false')
+            for intent in list(component.findall('intent-filter')):
+                component.remove(intent)
+        if component.tag == 'service' and component.get(ns + 'label'):
+            component.set(ns + 'label', 'AIX IO SDK Lab · 消息提示')
+    launcher = ET.SubElement(app, 'activity', {ns + 'name': PACKAGE + '.SdkLabActivity', ns + 'exported': 'true'})
+    intent = ET.SubElement(launcher, 'intent-filter')
+    ET.SubElement(intent, 'action', {ns + 'name': 'android.intent.action.MAIN'})
+    ET.SubElement(intent, 'category', {ns + 'name': 'android.intent.category.LAUNCHER'})
+    tree.write(destination, encoding='utf-8', xml_declaration=True)
+    return LAB_PACKAGE
+
+
+def production_sources():
+    """Every app/src/**/*.java; flat files stay in dev.xr.rayneo.probe, subfolders may hold subpackages."""
+    return sorted((ROOT / 'app/src').rglob('*.java'))
+
+
+def link_resources(s, output, manifest, apk_out, assets=None):
+    """Compile app/res and link it; returns (resource files, generated R.java).
+
+    R is generated in the source package (dev.xr.rayneo.probe) for every profile, so code refers
+    to one R class even though the sdk-lab build renames the application id.
+    """
+    aapt2 = s['build_tools'] / ('aapt2' + s['exe'])
+    shutil.copyfile(s['android_jar'], output / 'android.jar')
+    resource_files = [p for p in (ROOT / 'app/res').rglob('*') if p.is_file()]
+    compiled_resources = []
+    if resource_files:
+        # Compile a copied tree inside the same ASCII build workspace as the sources.
+        shutil.copytree(ROOT / 'app/res', output / 'res')
+        compiled = output / 'resources.zip'
+        command([aapt2, 'compile', '--dir', output / 'res', '-o', compiled])
+        compiled_resources = [compiled]
+    r_dir = output / 'generated/r'
+    r_dir.mkdir(parents=True, exist_ok=True)
+    command([aapt2, 'link', '-o', apk_out, '--manifest', manifest, '-I', output / 'android.jar',
+             *(['-A', assets] if assets else []), '--java', r_dir, '--custom-package', PACKAGE,
+             *compiled_resources])
+    r_java = r_dir / PACKAGE.replace('.', '/') / 'R.java'
+    if not r_java.is_file():
+        raise RuntimeError('aapt2 link 未生成 R.java')
+    return resource_files, r_java
+
+
+def build_in_workspace(s, output, profile='sdk-lab'):
     for name in ['assets', 'classes', 'dex', 'generated']:
         (output / name).mkdir(parents=True)
     payload = output / 'assets/vendor-payload.jar'
@@ -260,42 +352,52 @@ def build_in_workspace(s, output):
     generated = output / 'generated/PayloadInfo.java'
     generated.write_text('package dev.xr.rayneo.probe; final class PayloadInfo { static final String SHA256="'
                          + digest(payload) + '"; }', encoding='utf-8')
-    sources = list((ROOT / 'app/src').glob('*.java'))
+    sources = production_sources()
     libraries = []
     for dep in read_json(ROOT / 'app/lib/manifest.json'):
         path = ROOT / 'app/lib' / dep['file']
         if digest(path) != dep['sha256']:
             raise RuntimeError('Dependency checksum mismatch: ' + dep['file'])
         libraries.append(path)
+    unsigned, aligned, apk = [output / n for n in ['unsigned.apk', 'aligned.apk', 'rayneo-init-probe.apk']]
+    app_id = write_build_manifest(ROOT / 'app/AndroidManifest.xml', output / 'AndroidManifest.xml', profile)
+    # Stage 3.0: link resources first so the generated R.java joins the javac source set.
+    resource_files, r_java = link_resources(s, output, output / 'AndroidManifest.xml', unsigned, output / 'assets')
     command([tool(s, 'javac'), '-J-Duser.language=en', '-encoding', 'UTF-8', '-source', '8', '-target', '8',
-             '-classpath', os.pathsep.join(map(str, [s['android_jar'], *libraries])), '-d', output / 'classes', *sources, generated])
+             '-classpath', os.pathsep.join(map(str, [s['android_jar'], *libraries])), '-d', output / 'classes',
+             *sources, generated, r_java])
     command([tool(s, 'java'), '-cp', s['build_tools'] / 'lib/d8.jar', 'com.android.tools.r8.D8',
              '--min-api', '29', '--lib', s['android_jar'], '--output', output / 'dex',
              *list((output / 'classes').rglob('*.class')), *libraries])
-    unsigned, aligned, apk = [output / n for n in ['unsigned.apk', 'aligned.apk', 'rayneo-init-probe.apk']]
-    shutil.copyfile(ROOT / 'app/AndroidManifest.xml', output / 'AndroidManifest.xml')
-    shutil.copyfile(s['android_jar'], output / 'android.jar')
-    command([s['build_tools'] / ('aapt2' + s['exe']), 'link', '-o', unsigned,
-             '--manifest', output / 'AndroidManifest.xml', '-I', output / 'android.jar', '-A', output / 'assets'])
     with zipfile.ZipFile(unsigned, 'a', zipfile.ZIP_DEFLATED) as z:
         z.write(output / 'dex/classes.dex', 'classes.dex')
     command([s['build_tools'] / ('zipalign' + s['exe']), '-f', '-p', '4', unsigned, aligned])
     command([tool(s, 'java'), '-jar', s['build_tools'] / 'lib/apksigner.jar', 'sign',
              '--ks', s['key'], '--ks-pass', 'pass:android', '--out', apk, aligned])
     manifest = {'apk_sha256': digest(apk), 'payload_sha256': digest(payload), 'sample_sha256': SAMPLE_HASH,
+                'profile': profile, 'application_id': app_id,
+                'packaged_manifest_sha256': digest(output / 'AndroidManifest.xml'),
                 'vendor_input_kind': vendor_input_kind(s['sample']), 'vendor_input_sha256': digest(s['sample']),
                 'unmodified_entries': entries, 'source_sha256': {p.relative_to(ROOT).as_posix(): digest(p)
-                  for p in [*sources, *libraries, ROOT / 'app/lib/manifest.json', ROOT / 'app/AndroidManifest.xml', ROOT / 'lab.py']},
+                  for p in [*sources, *libraries, *resource_files, ROOT / 'app/lib/manifest.json', ROOT / 'app/AndroidManifest.xml', ROOT / 'app/lab-version.json', ROOT / 'lab.py']},
                 'scope': 'initialization-observation-and-gated-sdk-connection', 'native_libraries_included': False,
                 'declared_permissions': [p.attrib['{http://schemas.android.com/apk/res/android}name']
                     for p in ET.parse(ROOT / 'app/AndroidManifest.xml').getroot().findall('uses-permission')],
+                'r_java_generated': r_java.is_file(), 'r_java_package': PACKAGE,
+                'r_java_sha256': digest(r_java) if r_java.is_file() else None,
+                'source_layout': 'recursive app/src/**/*.java',
                 'device_tested': False}
     write_json(output / 'build-manifest.json', manifest)
     verify(s, output)
 
 
 def latest_output(value=None):
-    return path_value(value) if value else path_value(read_json(ROOT / 'out/latest-build.json')['directory'])
+    # 09-23: the daily app is retired, so an unqualified verify/run means the Lab build.
+    # The daily pointer is only a fallback for old checkouts that never built the Lab.
+    if value:
+        return path_value(value)
+    lab_pointer = ROOT / 'out/latest-sdk-lab-build.json'
+    return path_value(read_json(lab_pointer if lab_pointer.is_file() else ROOT / 'out/latest-build.json')['directory'])
 
 
 def adb_result(s, serial, *args, check=True, input_bytes=None):
@@ -423,7 +525,12 @@ def run_device(s, serial, execute=False, output=None, target_address=None, sdk_m
                     adb_result(s, serial, 'shell', '-T', 'run-as', PACKAGE, 'sh', '-c',
                                "'cat > files/notification.json'", input_bytes=notification_bytes)
                     extras += ['--ez', 'custom_notification', 'true']
-            report['launch_output'] = adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/' + activity, *extras)
+            if sdk_mode:
+                # 09-23 plan 0.5c: the session is hosted by the connectedDevice foreground service, not an Activity.
+                report['launch_output'] = adb('shell', 'am', 'start-foreground-service', '-n', PACKAGE + '/.ConnectionService',
+                                              '-a', 'dev.xr.rayneo.probe.SESSION', *extras)
+            else:
+                report['launch_output'] = adb('shell', 'am', 'start', '-W', '-n', PACKAGE + '/' + activity, *extras)
             terminal = {'sdk-discover': 'sdk_discovery_completed', 'sdk-connect': 'sdk_auth_passed', 'sdk-status': 'sdk_status_passed', 'sdk-text': 'sdk_text_sent', 'sdk-session': 'sdk_session_ready'}.get(
                 sdk_mode, 'observation_completed' if target_address else 'initialization_passed')
             for _ in range(45 if sdk_mode in ('sdk-connect', 'sdk-status', 'sdk-text', 'sdk-session') else 18):
@@ -474,10 +581,12 @@ def main():
     p.add_argument('--config', help='本机配置 JSON；不指定则自动探测工具')
     sub = p.add_subparsers(dest='action', required=True)
     sub.add_parser('doctor', help='只检查工具、样本和签名文件，不连接设备')
-    sub.add_parser('private-check', help='仅原私有迁移环境：核对私有文件；研究候选包构建不需要此命令')
+    sub.add_parser('private-check', help='核对用户自行维护的私有文件清单；公开候选构建不需要此命令')
     b = sub.add_parser('bootstrap', help='准备固定版本 Windows x64 工具')
     b.add_argument('--offline', action='store_true')
-    sub.add_parser('build', help='构建并核对实包、原始字节、签名与对齐')
+    build_parser = sub.add_parser('build', help='构建并核对实包、原始字节、签名与对齐')
+    build_parser.add_argument('--profile', choices=['daily', 'sdk-lab'], default='sdk-lab',
+                              help='默认 sdk-lab（独立包名、启动页与构建指针）；daily 为已废弃的日常包，仅复现旧实验时用')
     v = sub.add_parser('verify', help='验证已有构建')
     v.add_argument('--output')
     r = sub.add_parser('run', help='默认仅检查设备；--execute 才安装和运行')
@@ -501,7 +610,7 @@ def main():
             sdk.add_argument('--notification-file', help='本地 JSON，仅 title/content；不提供时发送固定测试文案')
         if name in ('sdk-connect', 'sdk-status', 'sdk-text', 'sdk-session'):
             sdk.add_argument('--pairing-ready', action='store_true',
-                             help='确认已完成官方解绑、系统移除旧配对并进入配对模式；否则执行仅做手机前置检查')
+                             help='仅首次配对：确认眼镜已按需进入配对模式且其他客户端已断开；不用于日常重连，否则执行仅做手机前置检查')
     args = p.parse_args()
     try:
         s = settings(args.config)
@@ -512,7 +621,7 @@ def main():
         elif args.action == 'doctor':
             result = doctor(s)
         elif args.action == 'build':
-            result = build(s)
+            result = build(s, args.profile)
         elif args.action == 'verify':
             result = verify(s, latest_output(args.output))
         elif args.action == 'observe':

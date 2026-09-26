@@ -113,10 +113,12 @@ def main():
     parser.add_argument('--execute', action='store_true', help='执行一次真实 API 请求；否则仅核对配置')
     parser.add_argument('--send-to-glasses', action='store_true')
     parser.add_argument('--serial')
+    parser.add_argument('--profile', choices=('daily', 'sdk-lab'), default='sdk-lab')
     parser.add_argument('--address')
     parser.add_argument('--pairing-ready', action='store_true')
     parser.add_argument('--use-session', action='store_true', help='复用当前持续连接；不重装、不重新配对')
     args = parser.parse_args()
+    package = lab.LAB_PACKAGE if args.profile == 'sdk-lab' else lab.PACKAGE
     report = {'status': 'not_started', 'model_request_attempted': False, 'glasses_requested': args.send_to_glasses}
     output = None
     try:
@@ -131,8 +133,10 @@ def main():
         else:
             if args.send_to_glasses:
                 if args.use_session:
-                    expected_session = session.require_live(lab.settings(), args.serial)['session_id']
+                    expected_session = session.require_live(lab.settings(), args.serial, package=package)['session_id']
                 else:
+                    if not lab.legacy_diagnostic_launch_enabled():
+                        raise ProbeError('当前构建不支持旧诊断启动；请先在手机 App 连接，再使用 --use-session')
                     ready = lab.run_device(lab.settings(), args.serial, target_address=args.address, sdk_mode='sdk-text', pairing_ready=True)
                     if ready['status'] != 'ready':
                         raise ProbeError('手机或构建未就绪；未调用模型')
@@ -147,7 +151,7 @@ def main():
             report['notification_file'] = str(notification)
             if args.send_to_glasses:
                 if args.use_session:
-                    device = session.send(lab.settings(), args.serial, 'notify', lab.read_notification(notification), expected_session)
+                    device = session.send(lab.settings(), args.serial, 'notify', lab.read_notification(notification), expected_session, package=package)
                     delivered = device['status'] == 'completed'
                 else:
                     device = lab.run_device(lab.settings(), args.serial, execute=True, target_address=args.address,

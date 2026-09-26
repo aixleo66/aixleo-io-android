@@ -22,6 +22,7 @@ final class RecorderLifecycleCheck {
         File files=new File(args[1]);files.mkdirs();Handler handler=new Handler();
         List<Integer> sent=new ArrayList<>();boolean[] rejectAck={false};
         GlassesRecorder recorder=new GlassesRecorder(new Context(files),handler,new GlassesRecorder.Host(){
+            public int recordingCapMinutes(){return 5;}
             public void changed(JSONObject state){}
             public void send(int type,JSONObject body,String id)throws Exception{if(rejectAck[0]&&id.startsWith("rec-ack"))throw new IOException("Test ACK failure");sent.add(type);}
         });
@@ -42,7 +43,7 @@ final class RecorderLifecycleCheck {
                 check(recorder.state().optString("phase").equals("saving"));
                 stopDeadline.run();check(recorder.busy()&&recorder.state().optString("phase").equals("saving"));
                 // This host test covers the state transition, not Android file replacement/MediaCodec.
-                check(!new File(files,"recordings/"+id+"/recording.wav").exists());
+                check(!new File(files,"recordings/"+id+"/recording.wav").exists()&&!new File(files,"recordings/"+id+"/recording.ogg").exists());
             }else if(args[0].equals("stale")){
                 set(recorder,"id","replacement");set(recorder,"phase","recording");
                 handler.advance(30000);check(recorder.state().optString("phase").equals("recording"));
@@ -52,7 +53,7 @@ final class RecorderLifecycleCheck {
                 handler.advance(9999);check(recorder.busy());
                 handler.advance(1);check(!recorder.busy()&&!recorder.captures()&&recorder.state().optString("phase").equals("failed"));
                 File original=new File(files,"recordings/"+id+"/source.rawopus");
-                check(original.isFile()&&original.length()==240&&!new File(original.getParentFile(),"recording.wav").exists());
+                check(original.isFile()&&original.length()==240&&!new File(original.getParentFile(),"recording.wav").exists()&&!new File(original.getParentFile(),"recording.ogg").exists());
                 handler.advance(300000);check(!recorder.busy());
             }
             System.out.println("Recorder lifecycle "+args[0]+" passed");

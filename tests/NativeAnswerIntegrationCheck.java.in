@@ -1,0 +1,435 @@
+package dev.xr.rayneo.probe;
+import java.util.*;
+import org.json.*;
+import android.os.SystemClock;
+
+public final class NativeAnswerIntegrationCheck {
+    boolean finished,finishing,voiceRecording;
+    boolean voiceArmed=true,cloudVoice=true;
+    boolean standbyEnabled,standbyReady,labNativeStandby,persistentSession=true,nativeReply=true,voicePreparing;
+    int standbyRounds,voicePackets,voiceBytes,voiceAfterStop;
+    final List<byte[]> voiceAudio=new ArrayList<>();
+    Journal voiceRounds;
+    Canceller cloudCancellation;
+    long voiceStopAt;
+    StreamingAsr streamingAsr;
+    String activeCommand="command",voiceCommand="command",activeCommandKind="voice-native",notificationUid;
+    NativeAnswerRound labNativeRound;
+    StreamingAsr labNativeStopStream;
+    int labNativeAutoExitSeconds=15;
+    int labNativeFollowupSeconds=10;
+    boolean labNativeFollowupEnabled=true;
+    int labNativeContinuationLinkType;
+    boolean labNativeContinuationCandidate;
+    String labNativeContinuationUser="",labNativeContinuationDialog="";
+    Runnable labNativeAutoExit;
+    Runnable labNativeExitConfirmation;
+    final AssistantConversation labAssistantConversation=new AssistantConversation();
+    boolean labAssistantConversationActive=true;
+    long nativeDisplayUntil,nativeFollowupUntil;
+    boolean awaitingDisplayComplete;
+    Runnable displayCompleteFallback;
+    int labNativeDisplayWaitSeconds=60;
+    int labNativeAnswerChunks=1;
+    final JSONObject result=new JSONObject();
+    final Map<String,Runnable> sendContinuations=new HashMap<>();
+    final List<JSONObject> sends=new ArrayList<>();
+    final Handler handler=new Handler();
+    int completedWrites,roundEnds,failures;
+    String getPackageName(){return "dev.xr.rayneo.sdklab";}
+    void stage(String n,Object value){}
+    void traceReading(String command,String event,JSONObject details){}
+    void voiceTiming(String id,String n,long time){}
+    void endVoiceRound(String id,String status){if(status.equals("failed"))failures++;else roundEnds++;}
+    void writeCloudResult(JSONObject c){if(!c.optString("status").equals("failed"))completedWrites++;}
+    void closeStreaming(){streamingAsr=null;}
+    void publishVoiceTiming(){}
+    void publishStandby(String phase){result.put("standby",new JSONObject().put("phase",phase).put("ready",standbyReady).put("enabled",standbyEnabled));}
+    void complete(String status,String error){throw new AssertionError(error);}
+    String rootError(Exception e){return e.getClass().getSimpleName();}
+    JSONObject nativeAnswerPayload(String t,String q,String c){throw new AssertionError("legacy path used");}
+    void sendBusiness(String b,int type,JSONObject value,String id){sends.add(new JSONObject().put("type",type).put("value",value).put("id",id));}
+    NativeAnswerIntegrationCheck(int link)throws Exception{
+        labNativeRound=new NativeAnswerRound(activeCommand,"session","own-user","own-dialog",new JSONObject().put("linkType",link));
+        result.put("session_id","session").put("last_command",new JSONObject().put("status","pending"))
+            .put("voice_test",new JSONObject()).put("glasses_cloud",new JSONObject());
+    }
+    static void check(boolean v,String label){if(!v)throw new AssertionError(label);}
+    static JSONObject pipeline(String text)throws Exception{return new JSONObject().put("text",text)
+        .put("answer",new JSONObject().put("text",text)).put("asr",new JSONObject().put("text","question"));}
+    static void verifyReadingMatrix()throws Exception{
+        StringBuilder compact=new StringBuilder();for(int i=0;i<32;i++)compact.append('中');
+        StringBuilder middle=new StringBuilder();for(int i=0;i<84;i++)middle.append('中');
+        String thirtyOne=compact.substring(0,compact.length()-1);
+
+        NativeAnswerIntegrationCheck ordinary=new NativeAnswerIntegrationCheck(2);
+        ordinary.sendNativeAnswer(pipeline(middle.toString()),ordinary.activeCommand);
+        check(ordinary.sends.size()==1,"84-code-point ordinary answer fits one transport chunk");
+        ordinary.handleLabNativeSend(ordinary.sends.get(0).getString("id"),null);
+        JSONObject reading=ordinary.result.getJSONObject("lab_native_reading");
+        // Sending no longer starts the windows: the glasses are still scrolling. Exactly one task
+        // is pending, the bounded wait for assistant_type_11, and no auto-exit timer is armed yet.
+        check(ordinary.handler.tasks.size()==1&&ordinary.awaitingDisplayComplete
+            &&ordinary.nativeDisplayUntil==0&&ordinary.nativeFollowupUntil==0
+            &&reading.optBoolean("awaiting_display_complete"),
+            "an 84-code-point answer starts no window until the scroll is reported");
+        // The windows only start once the glasses report the scroll finished.
+        ordinary.startReadingWindows();
+        reading=ordinary.result.getJSONObject("lab_native_reading");
+        // Length no longer decides the exit policy: this answer used to be classified as a manual
+        // reading fallback with no timer at all, which is why long answers never closed themselves.
+        check(!ordinary.awaitingDisplayComplete&&ordinary.nativeFollowupUntil!=0
+            &&ordinary.nativeDisplayUntil!=0&&ordinary.handler.tasks.size()==1
+            &&"bounded_auto_exit".equals(reading.getString("exit_policy")),
+            "a long answer now gets the same bounded auto-exit as a short one");
+
+        NativeAnswerIntegrationCheck separate=new NativeAnswerIntegrationCheck(2);
+        separate.labNativeStandby=true;separate.standbyEnabled=true;
+        separate.labNativeAutoExitSeconds=30;separate.labNativeFollowupSeconds=10;
+        separate.sendNativeAnswer(pipeline("好。"),separate.activeCommand);
+        separate.handleLabNativeSend(separate.sends.get(0).getString("id"),null);
+        reading=separate.result.getJSONObject("lab_native_reading");
+        // Sending only arms the bounded wait for display completion, at its own 60s default.
+        check(separate.handler.tasks.size()==1&&separate.handler.firstDelay()==60000
+            &&separate.awaitingDisplayComplete&&reading.optBoolean("awaiting_display_complete"),
+            "sending arms only the bounded wait for display completion");
+        separate.startReadingWindows();
+        reading=separate.result.getJSONObject("lab_native_reading");
+        check(separate.handler.tasks.size()==1&&separate.handler.firstDelay()==30000
+            &&reading.getLong("followup_due_elapsed_ms")-SystemClock.elapsedRealtime()==10000
+            &&reading.getLong("auto_exit_due_elapsed_ms")-SystemClock.elapsedRealtime()==30000,
+            "follow-up and compact-page exit clocks are independent");
+        SystemClock.now+=10000;
+        check(!separate.activateStandbyWake(11)&&separate.labNativeReadingActive(),
+            "follow-up expiry does not close the compact answer page");
+        separate.handler.runFirst();
+        check(separate.sends.get(separate.sends.size()-1).optInt("type")==7,
+            "compact page requests exactly its own later auto exit");
+
+        NativeAnswerIntegrationCheck lens=new NativeAnswerIntegrationCheck(2);
+        JSONObject lensPipeline=pipeline(middle.toString());
+        lensPipeline.getJSONObject("answer").put("lens_text","好。");
+        lens.sendNativeAnswer(lensPipeline,lens.activeCommand);
+        lens.handleLabNativeSend(lens.sends.get(0).getString("id"),null);
+        check(lens.handler.tasks.size()==1,
+            "reading decision follows displayed lens_text, not archived full answer");
+
+        NativeAnswerIntegrationCheck failed=new NativeAnswerIntegrationCheck(2);
+        JSONObject failure=pipeline("知识库暂时不可用，请稍后重试。").put("status","failed")
+            .put("provider","knowledge");
+        failed.result.put("glasses_cloud",failure);
+        failed.sendNativeAnswer(failure,failed.activeCommand);
+        check(failed.sends.size()==1&&failed.sends.get(0).optInt("type")==32,
+            "knowledge failure presents a visible answer-channel notice before exit");
+        failed.handleLabNativeSend(failed.sends.get(0).getString("id"),null);
+        check(failed.result.getJSONObject("last_command").getString("status").equals("failed")
+            &&failed.result.getJSONObject("voice_test").getString("phase").equals("failed_displayed")
+            &&failed.failures==1&&failed.handler.tasks.size()==1,
+            "visible failure remains a failed round and uses the compact notice timer");
+
+        for(int byteCount:new int[]{480,481}){
+            NativeAnswerIntegrationCheck boundary=new NativeAnswerIntegrationCheck(2);
+            StringBuilder value=new StringBuilder();for(int i=0;i<byteCount;i++)value.append('a');
+            boundary.sendNativeAnswer(pipeline(value.toString()),boundary.activeCommand);
+            for(int i=0;i<boundary.sends.size();i++)boundary.handleLabNativeSend(boundary.sends.get(i).getString("id"),null);
+            check(boundary.sends.size()==(byteCount==480?1:2),"UTF-8 transport boundary "+byteCount);
+            // transport_chunks was part of the length-classification receipt and is gone with it.
+            // The split itself still matters, so assert on the frames actually sent. link=2 here,
+            // so there is no type-12 finish frame; every send is an answer chunk.
+            int answerFrames=0;
+            for(int i=0;i<boundary.sends.size();i++)if(boundary.sends.get(i).optInt("type")==32)answerFrames++;
+            check(answerFrames==(byteCount==480?1:2),
+                "answer split into the expected number of chunks at boundary "+byteCount);
+        }
+
+        // Once the windows are running, the follow-up deadline still bounds a second type 11.
+        for(int offset:new int[]{-1,0,1}){
+            NativeAnswerIntegrationCheck edge=new NativeAnswerIntegrationCheck(2);
+            edge.labNativeStandby=true;edge.standbyEnabled=true;
+            edge.sendNativeAnswer(pipeline("好。"),edge.activeCommand);
+            edge.handleLabNativeSend(edge.sends.get(0).getString("id"),null);
+            edge.startReadingWindows();
+            SystemClock.now=edge.nativeFollowupUntil+offset;
+            check(edge.activateStandbyWake(11)==(offset<0),"type11 follow-up deadline boundary "+offset);
+        }
+
+        // A long answer scrolls for ~17s, so its type 11 necessarily arrives after any window that
+        // started at send time. While still awaiting display completion the report must be accepted
+        // however late it is — rejecting it is what cut long answers short.
+        for(int late:new int[]{17000,60000}){
+            NativeAnswerIntegrationCheck slow=new NativeAnswerIntegrationCheck(2);
+            slow.labNativeStandby=true;slow.standbyEnabled=true;
+            slow.sendNativeAnswer(pipeline("好。"),slow.activeCommand);
+            slow.handleLabNativeSend(slow.sends.get(0).getString("id"),null);
+            check(slow.awaitingDisplayComplete&&slow.nativeFollowupUntil==0,
+                "windows must not start at send time");
+            SystemClock.now+=late;
+            check(slow.activateStandbyWake(11),"late type11 accepted after "+late+"ms of scrolling");
+            check(!slow.awaitingDisplayComplete&&slow.nativeFollowupUntil>SystemClock.elapsedRealtime(),
+                "late type11 starts the windows from its own arrival, not from send time");
+        }
+    }
+    public static void main(String[] args)throws Exception{
+        CloudReadingCheck.verify();
+        verifyReadingMatrix();
+        verifyKnowledgeWaitingPreface();
+        verifyStandbyRounds();
+        verifyCancellationArchive();
+        for(int link:new int[]{1,2,3}){
+            NativeAnswerIntegrationCheck h=new NativeAnswerIntegrationCheck(link);StringBuilder original=new StringBuilder();
+            for(int i=0;i<180;i++)original.append("中😀");
+            h.sendNativeAnswer(pipeline(original.toString()),h.activeCommand);
+            StringBuilder joined=new StringBuilder();int chunks=0,finishes=0;
+            for(int i=0;i<h.sends.size();i++){
+                JSONObject send=h.sends.get(i);int type=send.optInt("type");String id=send.getString("id");
+                if(type==32){
+                    JSONObject payload=send.getJSONObject("value"),answer=payload.getJSONObject("answer");String text=answer.getString("text");joined.append(text);chunks++;
+                    check(text.getBytes("UTF-8").length<=480,"UTF8 chunk bound");
+                    check(payload.getString("uuid").equals("own-user")&&payload.getString("sid").equals("own-dialog"),"separate identity");
+                    check(payload.getLong("timestamp")<100000000000L,"seconds timestamp");
+                    check(answer.optBoolean("isFinal")==joined.toString().equals(original.toString()),"last chunk only final");
+                }else if(type==12){finishes++;check(link==3&&h.roundEnds==0,"RayClaw waits for finish ACK");}
+                h.handleLabNativeSend(id,null);h.handleLabNativeSend(id,null);
+            }
+            check(chunks>1&&joined.toString().equals(original.toString()),"unicode preserved");
+            check(finishes==(link==3?1:0)&&h.roundEnds==1&&h.completedWrites==1,"completion exactly once per link");
+            check(h.result.getJSONObject("last_command").optString("status").equals("completed"),"delivery state");
+            // A multi-chunk answer scrolls the longest, so it is exactly the case that must not
+            // have any window running yet at send time.
+            check(h.handler.tasks.size()==1&&h.awaitingDisplayComplete
+                &&h.nativeDisplayUntil==0&&h.nativeFollowupUntil==0
+                &&h.labNativeReadingActive(),"long answer starts no window until the scroll is reported");
+            h.startReadingWindows();
+            // Used to assert the opposite: a long answer kept no timer and waited for a manual
+            // exit. That was the defect — the page stayed on screen forever. Now length does not
+            // decide, so a multi-chunk answer gets the same bounded auto-exit.
+            check(h.handler.tasks.size()==1&&h.nativeDisplayUntil>0&&h.nativeFollowupUntil>0
+                &&h.labNativeReadingActive(),"long reading now gets a bounded auto-exit like any other");
+            check(!h.handleLabNativeReadingExit(11)&&h.labNativeReadingActive(),"next round event is not pagination exit");
+            SystemClock.now+=60000;
+            // Previously the page outlived every window because a long answer had no timer at all.
+            // It now has one; firing it is what closes the page the user reported never closing.
+            check(h.handler.tasks.size()==1,"long reading holds exactly its auto-exit timer");
+            h.handler.runFirst();
+            check(!h.labNativeReadingActive(),"the auto-exit timer closes a long reading");
+            h.activeCommand="notification-command";h.activeCommandKind="notify";
+            check(h.handleLabNativeReadingExit(8)&&h.nativeDisplayUntil==0,"device exit ends current reading");
+            check(h.handler.tasks.isEmpty(),"manual exit cancels auto exit");
+            check(h.result.getJSONObject("lab_native_reading").getString("state").equals("device_exit_received"),"reading exit observed separately");
+            check(h.result.getJSONObject("last_command").getString("status").equals("completed")&&h.roundEnds==1,"reading exit preserves successful delivery");
+            check(!h.handleLabNativeReadingExit(8),"duplicate reading exit ignored");
+        }
+        NativeAnswerIntegrationCheck host=new NativeAnswerIntegrationCheck(2);host.sendNativeAnswer(pipeline("read"),host.activeCommand);
+        host.handleLabNativeSend(host.sends.get(0).getString("id"),null);host.activeCommand="host-stop";host.activeCommandKind="standby-off";
+        check(host.requestLabNativeReadingExit()&&host.nativeDisplayUntil==0,"host exit independent of active command");
+        JSONObject exit=host.sends.get(host.sends.size()-1);check(exit.optInt("type")==7,"host sends native exit");
+        host.handleLabNativeSend(exit.getString("id"),null);
+        check(host.result.getJSONObject("lab_native_reading").getString("state").equals("host_exit_send_completed")&&host.roundEnds==1,"host exit ACK keeps delivered round");
+        NativeAnswerIntegrationCheck timed=new NativeAnswerIntegrationCheck(2);timed.labNativeStandby=true;timed.standbyEnabled=true;timed.sendNativeAnswer(pipeline("timed"),timed.activeCommand);
+        timed.handleLabNativeSend(timed.sends.get(0).getString("id"),null);
+        check(timed.handler.tasks.size()==1&&timed.awaitingDisplayComplete,"display-complete wait armed");
+        // The glasses may never report the scroll. Firing the bounded wait must start the windows
+        // rather than leave the round hanging (an unclosed wait never self-heals).
+        timed.handler.runFirst();
+        check(timed.handler.tasks.size()==1&&!timed.awaitingDisplayComplete,
+            "bounded wait starts the windows when type11 never arrives");
+        timed.handler.runFirst();JSONObject timedExit=timed.sends.get(timed.sends.size()-1);
+        check(timedExit.optInt("type")==7&&timed.result.getJSONObject("lab_native_reading").getString("state").equals("auto_exit_requested"),"timer requests device exit");
+        timed.handleLabNativeSend(timedExit.getString("id"),null);
+        check(timed.result.getJSONObject("lab_native_reading").getString("state").equals("auto_exit_send_completed")&&timed.standbyReady,"send ACK re-arms without pretending device exit");
+        check(timed.handleLabNativeReadingExit(8)&&timed.standbyReady&&timed.handler.tasks.isEmpty(),"device exit re-arms and cancels confirmation timeout");
+        NativeAnswerIntegrationCheck silentExit=new NativeAnswerIntegrationCheck(2);silentExit.labNativeStandby=true;silentExit.standbyEnabled=true;
+        silentExit.sendNativeAnswer(pipeline("silent"),silentExit.activeCommand);silentExit.handleLabNativeSend(silentExit.sends.get(0).getString("id"),null);
+        // First fires the bounded wait for display completion, then the auto-exit timer.
+        silentExit.handler.runFirst();
+        silentExit.handler.runFirst();JSONObject silentExitCommand=silentExit.sends.get(silentExit.sends.size()-1);silentExit.handleLabNativeSend(silentExitCommand.getString("id"),null);
+        check(silentExit.standbyReady&&silentExit.handler.tasks.size()==1&&silentExit.handler.firstDelay()==5000,"send ACK re-arms while awaiting optional device exit confirmation");
+        silentExit.handler.runFirst();
+        check(silentExit.standbyReady&&silentExit.result.getJSONObject("lab_native_reading").getString("state").equals("auto_exit_device_exit_unconfirmed"),"missing device exit is retained but next wake recovers");
+        NativeAnswerIntegrationCheck empty=new NativeAnswerIntegrationCheck(3);empty.sendNativeAnswer(pipeline(""),empty.activeCommand);
+        check(empty.failures==1&&empty.sends.size()==1&&empty.sends.get(0).optInt("type")==7&&empty.roundEnds==0,"empty answer exits without delivery");
+        NativeAnswerIntegrationCheck whitespace=new NativeAnswerIntegrationCheck(3);whitespace.sendNativeAnswer(pipeline(" \n\t "),whitespace.activeCommand);
+        check(whitespace.failures==1&&!whitespace.voiceArmed,"whitespace answer disarms and fails");
+        check(whitespace.labNativeRound.payload("   ","q",false,1000).getJSONObject("answer").getString("text").equals("   "),"interior whitespace chunk preserved");
+        NativeAnswerIntegrationCheck rejected=new NativeAnswerIntegrationCheck(3);rejected.labNativeRound=null;
+        rejected.failStreaming(rejected.activeCommand,"Unsupported native wake context",false);
+        check(!rejected.voiceArmed&&!rejected.currentRound(rejected.activeCommand)&&rejected.failures==1,"rejected context cannot restart capture");
+        String rejectedExit=rejected.sends.get(0).getString("id");
+        check(rejectedExit.equals("lab-native-exit-command")&&rejected.handleLabNativeSend(rejectedExit,"failed"),"rejected cleanup remains isolated");
+        check(!rejected.result.optBoolean("lab_native_exit_send_completed"),"failed cleanup recorded");
+        NativeAnswerIntegrationCheck stop=new NativeAnswerIntegrationCheck(3);stop.labNativeStopStream=new StreamingAsr();
+        stop.handleLabNativeSend(stop.labNativeRound.request("stop"),null);check(stop.labNativeStopStream.stops==1,"stop delivered to captured stream");
+        stop.handleLabNativeSend("lab-native-stop-old",null);check(stop.labNativeStopStream.stops==1,"old stop ignored");
+        NativeAnswerIntegrationCheck cancelled=new NativeAnswerIntegrationCheck(3);cancelled.sendNativeAnswer(pipeline("one"),cancelled.activeCommand);
+        cancelled.result.getJSONObject("last_command").put("status","cancelled");cancelled.handleLabNativeSend(cancelled.sends.get(0).getString("id"),null);
+        check(cancelled.roundEnds==0&&cancelled.sends.size()==1,"late answer cannot override cancellation");
+        NativeAnswerIntegrationCheck failed=new NativeAnswerIntegrationCheck(3);failed.sendNativeAnswer(pipeline("one"),failed.activeCommand);
+        failed.handleLabNativeSend(failed.sends.get(0).getString("id"),"failed");failed.handleLabNativeSend(failed.sends.get(0).getString("id"),null);
+        check(failed.failures==1&&failed.roundEnds==0,"failed answer not completed by late ACK");
+        for(Object raw:new Object[]{0,4,"3",3.0,JSONObject.NULL}){
+            try{new NativeAnswerRound("c","s","u","d",new JSONObject().put("linkType",raw));throw new AssertionError("unknown link accepted");}
+            catch(IllegalArgumentException expected){}
+        }
+        System.out.println("native answer production dispatch checks passed");
+    }
+    static void verifyKnowledgeWaitingPreface()throws Exception{
+        NativeAnswerIntegrationCheck ok=new NativeAnswerIntegrationCheck(3);int[] starts={0};
+        ok.startKnowledgeWaitingPreface(ok.activeCommand,"知识库检索，测试",()->starts[0]++);
+        check(ok.sends.size()==1&&ok.sends.get(0).optInt("type")==32&&starts[0]==0,"query waits for preface callback");
+        String id=ok.sends.get(0).getString("id");ok.handleLabNativeSend(id,null);ok.handleLabNativeSend(id,null);
+        check(starts[0]==1&&ok.result.getJSONObject("knowledge_waiting_preface").optString("status").equals("sent"),"successful callback starts query once");
+        ok.handler.runFirst();check(starts[0]==1,"watchdog cannot duplicate acknowledged query");
+
+        NativeAnswerIntegrationCheck failed=new NativeAnswerIntegrationCheck(3);int[] failedStarts={0};
+        failed.startKnowledgeWaitingPreface(failed.activeCommand,"知识库检索，失败",()->failedStarts[0]++);
+        failed.handleLabNativeSend(failed.sends.get(0).getString("id"),"send failed");
+        check(failedStarts[0]==1&&failed.failures==0&&failed.result.getJSONObject("knowledge_waiting_preface").optString("status").equals("failed"),"decorative send failure does not discard query");
+
+        NativeAnswerIntegrationCheck timeout=new NativeAnswerIntegrationCheck(3);int[] timeoutStarts={0};
+        timeout.startKnowledgeWaitingPreface(timeout.activeCommand,"知识库检索，超时",()->timeoutStarts[0]++);
+        check(timeout.handler.firstDelay()==3000,"bounded preface callback wait");timeout.handler.runFirst();
+        check(timeoutStarts[0]==1&&timeout.result.getJSONObject("knowledge_waiting_preface").optString("status").equals("callback_timeout"),"missing callback continues query");
+        timeout.handleLabNativeSend(timeout.sends.get(0).getString("id"),null);
+        check(timeoutStarts[0]==1&&timeout.result.getJSONObject("knowledge_waiting_preface").optString("late_callback").equals("sent"),"late callback is evidence only");
+
+        NativeAnswerIntegrationCheck cancelled=new NativeAnswerIntegrationCheck(3);int[] cancelledStarts={0};
+        cancelled.startKnowledgeWaitingPreface(cancelled.activeCommand,"知识库检索，取消",()->cancelledStarts[0]++);
+        cancelled.result.getJSONObject("last_command").put("status","cancelled");cancelled.handler.runFirst();
+        check(cancelledStarts[0]==0&&!cancelled.sendContinuations.containsKey(cancelled.sends.get(0).getString("id")),"cancelled round cannot start delayed query");
+    }
+    void endRecordingHandoff()throws Exception{
+        String command=voiceCommand,session=result.optString("session_id");
+        // PRODUCTION_HANDOFF_END
+    }
+    static void verifyCancellationArchive()throws Exception{
+        for(String reason:new String[]{"cancelled_by_host","cancelled_by_device","session_ended","session_failed"}){
+            NativeAnswerIntegrationCheck h=new NativeAnswerIntegrationCheck(3);
+            h.result.put("glasses_cloud",pipeline("partial").put("session_id","session").put("job_id","command").put("provider","knowledge"));
+            h.result.getJSONObject("voice_test").put("upload_started",true);
+            h.activeCommand="host-control";h.activeCommandKind="standby-off";
+            if(reason.equals("cancelled_by_host"))h.stopStandby();else h.archiveVoiceCancellation(reason);
+            JSONObject c=h.result.getJSONObject("glasses_cloud");
+            check(c.optString("job_id").equals("command")&&c.optString("provider").equals("knowledge")&&c.optBoolean("upload_started"),"cancel retains actual voice identity and context");
+            check(c.optString("status").equals(reason.equals("session_failed")?"failed":"cancelled")&&h.labNativeRound.terminal(),"each normal exit terminates receipt");
+            int writes=h.completedWrites;h.archiveVoiceCancellation("late");check(h.completedWrites==writes,"terminal cancellation is not repeated");
+        }
+        NativeAnswerIntegrationCheck recording=new NativeAnswerIntegrationCheck(3);recording.endRecordingHandoff();
+        check(recording.completedWrites==0&&recording.labNativeRound.terminal(),"normal recording handoff is not a user cancellation");
+        NativeAnswerIntegrationCheck early=new NativeAnswerIntegrationCheck(3);
+        early.result.put("glasses_cloud",pipeline("old answer").put("job_id","old").put("session_id","session"));
+        early.archiveVoiceCancellation("cancelled_by_device");JSONObject c=early.result.getJSONObject("glasses_cloud");
+        check(!c.has("asr")&&!c.has("provider")&&!c.optBoolean("upload_started"),"preupload cancellation never borrows previous round");
+        NativeAnswerIntegrationCheck idle=new NativeAnswerIntegrationCheck(3);idle.labNativeRound=null;idle.standbyReady=true;
+        idle.archiveVoiceCancellation("session_ended");check(idle.completedWrites==0,"idle creates no voice round");
+        NativeAnswerIntegrationCheck read=new NativeAnswerIntegrationCheck(3);read.labNativeRound.finishOnce();
+        read.archiveVoiceCancellation("session_ended");check(read.completedWrites==0,"delivered reading creates no false cancellation");
+    }
+    static void verifyStandbyRounds()throws Exception{
+        NativeAnswerIntegrationCheck h=new NativeAnswerIntegrationCheck(3);
+        h.labNativeStandby=true;h.standbyEnabled=true;h.result.getJSONObject("last_command").put("status","completed");
+        h.rearmStandby();String first=h.voiceCommand;
+        check(h.sends.isEmpty()&&h.standbyReady&&h.result.getJSONObject("last_command").optString("status").equals("completed"),"idle only arms subscription, retains completed host command");
+        h.activeCommand="query";h.activeCommandKind="status";h.result.getJSONObject("last_command").put("id","query").put("status","pending");
+        check(!h.activateStandbyWake(1)&&h.activeCommand.equals("query")&&h.standbyReady,"pending host command not replaced by wake");
+        h.result.getJSONObject("last_command").put("status","completed");
+        check(!h.activateStandbyWake(11)&&h.standbyReady,"ordinary idle never accepts type11");
+        check(h.activateStandbyWake(1)&&h.labNativeMode()&&h.currentRound(h.voiceCommand),"wake sets Lab round before context validation");
+        h.labNativeRound=new NativeAnswerRound(h.voiceCommand,"session","own-user","own-dialog",new JSONObject().put("linkType",3));
+        int start=h.sends.size();h.sendNativeAnswer(pipeline("first"),h.voiceCommand);
+        for(int j=start;j<h.sends.size();j++)h.handleLabNativeSend(h.sends.get(j).getString("id"),null);
+        String followupCommand=h.voiceCommand;
+        check(h.standbyReady&&h.voiceArmed&&h.labNativeReadingActive(),"completed answer arms bounded follow-up while preserving reading");
+        check(!followupCommand.equals(first)&&h.handler.tasks.size()==1&&h.handler.firstDelay()==60000,"sending arms the bounded wait for display completion, not the reading window");
+        check(h.activateStandbyWake(11)&&h.labNativeContinuationLinkType==3&&!h.standbyReady,"type11 enters a candidate round with owned link context");
+        check(h.handler.tasks.isEmpty()&&h.nativeDisplayUntil>0&&h.labNativeRound.terminal()&&h.labNativeContinuationCandidate,"candidate pauses the old reading timer without discarding its answer");
+        h.promoteLabNativeContinuation(h.voiceCommand);
+        check(!h.labNativeContinuationCandidate&&h.nativeDisplayUntil==0&&!h.labNativeRound.terminal(),"confirmed speech promotes the candidate and retires old reading");
+        start=h.sends.size();h.sendNativeAnswer(pipeline("second"),h.voiceCommand);
+        for(int j=start;j<h.sends.size();j++)h.handleLabNativeSend(h.sends.get(j).getString("id"),null);
+        check(h.standbyReady&&h.labNativeReadingActive(),"continuation answer opens a fresh bounded window");
+        h.activeCommand="notify";h.activeCommandKind="notify";
+        check(h.handleLabNativeReadingExit(8)&&h.standbyReady,"manual crown exit wins and retains wake listener");
+        check(!h.activateStandbyWake(11)&&h.standbyReady,"type11 after manual exit is rejected");
+        check(!h.voiceRecording&&h.sends.size()==4,"two rounds add no idle capture or extra sends");
+        check(h.standbyRounds==2&&h.roundEnds==2,"two separately completed rounds");
+        h.stopStandby();check(!h.labNativeStandby&&!h.standbyReady&&!h.voiceArmed,"explicit stop disables Lab wait");
+
+        NativeAnswerIntegrationCheck silent=new NativeAnswerIntegrationCheck(3);
+        silent.labNativeStandby=true;silent.standbyEnabled=true;
+        silent.sendNativeAnswer(pipeline("keep this answer"),silent.activeCommand);
+        for(int i=0;i<silent.sends.size();i++)silent.handleLabNativeSend(silent.sends.get(i).getString("id"),null);
+        int beforeSilent= silent.sends.size();
+        check(silent.activateStandbyWake(11),"silent continuation candidate accepted");
+        String silentCommand=silent.voiceCommand;silent.voiceRecording=true;silent.streamingAsr=new StreamingAsr();
+        silent.failStreaming(silentCommand,"续问候选未检测到有效语音",false);
+        // Official behaviour (user decision 2026-09-20): the receipt opens one listening window
+        // and silence at its end closes the page. Previously a second full reading window was
+        // started, holding the answer far longer than the official 10s.
+        // 2026-09-22: official parity. On a no-speech timeout the official app puts NOTHING on the
+        // wire -- the whole event is one local line, [VA_TRACE][RUNNING_CHANGED] active=false
+        // reason=vad_timeout (09-20 duplex capture). Ours used to push type 7, and the firmware
+        // then needed seconds before it would honour a voice wake again; the user measured ~3s of
+        // dead air after every timeout. Only the capture stop goes out now.
+        check(silent.sends.size()==beforeSilent+2&&silent.sends.get(beforeSilent).optInt("type")==2
+            &&silent.sends.get(beforeSilent+1).optInt("type")==7,
+            "silent candidate stops capture then exits the page; types="+silent.sends);
+        // Stricter than the old check, not weaker: with no frame on the wire there is no send ACK
+        // to ride on, so the re-arm has to have happened already. Miss it and the next hardware
+        // wake is dropped and the glasses show "please connect" -- the 2026-09-20 defect.
+        check(!silent.standbyReady,"standby still ready before the exit ACK");
+        silent.handleLabNativeSend(silent.sends.get(beforeSilent+1).getString("id"),null);
+        check(silent.standbyReady&&silent.voiceArmed,
+            "silent exit left the session unable to accept the next wake");
+        JSONObject recovered=silent.result.getJSONObject("continuation_no_speech");
+        check(recovered.optBoolean("exit_sent")&&!recovered.optBoolean("reading_window_restarted")
+            &&recovered.optLong("followup_window_ms")==10000,
+            "silent candidate reports one official window and a sent exit; got "+recovered);
+
+        NativeAnswerIntegrationCheck disabled=new NativeAnswerIntegrationCheck(3);
+        disabled.labNativeStandby=true;disabled.standbyEnabled=true;disabled.labNativeFollowupEnabled=false;
+        disabled.sendNativeAnswer(pipeline("disabled"),disabled.activeCommand);
+        for(int i=0;i<disabled.sends.size();i++)disabled.handleLabNativeSend(disabled.sends.get(i).getString("id"),null);
+        check(!disabled.standbyReady&&disabled.labNativeReadingActive(),"disabled follow-up keeps the existing read-then-exit behavior");
+    }
+    // PRODUCTION_METHODS
+}
+final class Handler {final List<Runnable> tasks=new ArrayList<>();final Map<Runnable,Long> delays=new IdentityHashMap<>();void postDelayed(Runnable r,long ms){tasks.add(r);delays.put(r,ms);}void removeCallbacks(Runnable r){tasks.remove(r);delays.remove(r);}long firstDelay(){return delays.get(tasks.get(0));}void runFirst(){Runnable r=tasks.remove(0);delays.remove(r);r.run();}}
+final class StreamingAsr {int stops;void acknowledgeCaptureStop(boolean ok){stops++;}}
+final class Journal {void listenerRearmed(long now){}}
+final class Canceller {void cancel(){}}
+final class OpusAudio {static void clear(List<byte[]> packets){packets.clear();}}
+final class CloudReadingCheck {
+    static int limit;
+    static class Cancellation {void check(){}}
+    static class Failure extends Exception {Failure(String message){super(message);}}
+    static int defaultCalls,knowledgeCalls;
+    static boolean knowledgeFails;
+    static class KnowledgeClient {static JSONObject ask(JSONObject config,String prompt,Cancellation cancel)throws Exception{
+        knowledgeCalls++;if(knowledgeFails)throw new Failure("knowledge unavailable");
+        return new JSONObject().put("provider","knowledge").put("original_prompt",prompt);
+    }}
+    static JSONObject call(JSONObject config,String provider,JSONObject body,int max,Cancellation cancel){defaultCalls++;limit=max;return body;}
+    static void verify()throws Exception{
+        JSONObject normal=ask(new JSONObject(),"短问题",new Cancellation());
+        NativeAnswerIntegrationCheck.check(normal.optInt("max_tokens")==256&&limit==500,"daily request limits preserved");
+        NativeAnswerIntegrationCheck.check(normal.getJSONArray("messages").getJSONObject(0).getString("content").contains("不超过100个汉字的纯文本简洁回答"),"daily instruction preserved");
+        JSONObject reading=askReadingTrial(new JSONObject(),"长回答",new Cancellation());
+        NativeAnswerIntegrationCheck.check(reading.optInt("max_tokens")==1024&&limit==2000,"reading request uses separate bounded budget");
+        NativeAnswerIntegrationCheck.check(reading.getJSONArray("messages").getJSONObject(0).getString("content").contains("不超过400个汉字"),"reading instruction");
+        ask(new JSONObject(),"又一短问题",new Cancellation());NativeAnswerIntegrationCheck.check(limit==500,"reading request does not persist settings");
+        JSONObject legacy=new JSONObject().put("assistant_provider","knowledge");
+        ask(legacy,"一加一等于几",new Cancellation());
+        NativeAnswerIntegrationCheck.check(knowledgeCalls==0,"legacy global provider cannot route ordinary questions to knowledge");
+        for(String question:new String[]{"知识库检索，语音待办怎么验收？","请查一下知识库里的同步记录","这件事在知识库里有记录吗"}){
+            JSONObject answer=askReadingTrial(legacy,question,new Cancellation());
+            NativeAnswerIntegrationCheck.check(answer.optString("provider").equals("knowledge")&&answer.optString("original_prompt").equals(question),"keyword routes final prompt intact");
+        }
+        int defaultsBefore=defaultCalls;knowledgeFails=true;
+        try{ask(legacy,"知识库检索，测试失败",new Cancellation());throw new AssertionError("must report knowledge failure");}
+        catch(Failure expected){}
+        NativeAnswerIntegrationCheck.check(defaultCalls==defaultsBefore,"knowledge failure never falls back to default");
+        askReadingTrial(legacy,"二加三等于几",new Cancellation());
+        NativeAnswerIntegrationCheck.check(defaultCalls==defaultsBefore+1&&knowledgeCalls==4,"next ordinary turn uses default without changing config");
+    }
+    // CLOUD_METHODS
+}

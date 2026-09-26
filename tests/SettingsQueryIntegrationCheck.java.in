@@ -1,0 +1,69 @@
+package dev.xr.rayneo.probe;
+import org.json.*;
+import java.util.*;
+import android.os.SystemClock;
+public class SettingsQueryIntegrationCheck {
+    JSONObject result=new JSONObject();
+    LabSettingsQuery settingsQuery;
+    boolean settingsQueryUncertain;
+    boolean autoSettingsSyncPending;
+    String activeCommand;
+    void stage(String key,Object value){}
+    void begin(String id)throws Exception{
+        activeCommand=id;result.put("last_command",new JSONObject().put("id",id).put("status","pending"));
+        beginSettingsQuery(id);
+    }
+    static void check(boolean ok,String message){if(!ok)throw new AssertionError(message);}
+    static JSONObject values(Object seconds){return new JSONObject().put("generalSettings",new JSONObject().put("autoLockTime",seconds).put("sn","private"));}
+    // PRODUCTION_METHODS
+    public static void main(String[] args)throws Exception{
+        SettingsQueryIntegrationCheck h=new SettingsQueryIntegrationCheck();
+        h.begin("baseline");
+        h.settingsQuery.sent(true,SystemClock.elapsedRealtime());
+        h.captureSettingsReply("LAUNCHER",4,new JSONObject());
+        h.captureSettingsReply("LAUNCHER",4,new JSONObject().put("generalSettings",new JSONObject().put("sn","private")));
+        h.captureSettingsReply("LAUNCHER",4,values("5"));
+        h.captureSettingsReply("LAUNCHER",5,values(5));
+        h.captureSettingsReply("NOTIFICATION",4,values(5));
+        check(!h.settingsQuery.done&&!h.result.has("reported_settings_values"),"unrelated, empty, unknown or string values must not complete");
+        h.captureSettingsReply("LAUNCHER",4,values(5));
+        check(h.settingsQuery.passed(),"valid baseline must complete after send callback");
+        check(h.result.getJSONObject("reported_settings_values").length()==1,"private value leaked");
+        check(h.result.getJSONObject("last_command").optString("status").equals("completed"),"host receipt missing");
+        LabSettingsQuery previous=h.settingsQuery;
+        h.begin("after-write");
+        check(!h.result.has("reported_settings_values")&&!h.settingsQuery.done,"new read reused old snapshot");
+        previous.sent(false,SystemClock.elapsedRealtime());
+        h.captureSettingsReply("LAUNCHER",4,values(10));
+        check(!h.settingsQuery.done,"reply alone must not complete");
+        h.settingsQuery.sent(true,SystemClock.elapsedRealtime());h.publishSettingsQuery();
+        check(h.settingsQuery.passed()&&h.result.getJSONObject("reported_settings_values").optInt("generalSettings.autoLockTime")==10,"second read failed");
+        h.begin("restore");h.settingsQuery.sent(true,SystemClock.elapsedRealtime());h.captureSettingsReply("LAUNCHER",4,values(5));
+        check(h.settingsQuery.passed()&&h.result.getJSONObject("lab_settings_query").optString("id").equals("restore"),"third read association failed");
+        LabSettingsQuery empty=new LabSettingsQuery("empty",0);empty.sent(true,1);empty.reply("LAUNCHER",4,true,0,2);empty.tick(12000);
+        check(!empty.passed()&&empty.issue.equals("valid_reply_timeout"),"empty read became success");
+        LabSettingsQuery late=new LabSettingsQuery("late",0);late.reply("LAUNCHER",4,true,1,1);late.sent(true,12000);
+        check(!late.passed(),"late send callback became success");
+
+        // 2026-09-22: a snapshot nobody asked for must be kept too. Before that change this method
+        // returned immediately unless a lab query was in flight, so the snapshot the glasses push
+        // on their own -- which arrives before session_ready -- was decoded and thrown away, and
+        // the settings page could only show data right after a button press.
+        SettingsQueryIntegrationCheck idle=new SettingsQueryIntegrationCheck();
+        check(idle.settingsQuery==null,"fixture must start with no active query");
+        idle.captureSettingsReply("LAUNCHER",4,values(25));
+        check(idle.result.has("reported_settings_values")
+            &&idle.result.getJSONObject("reported_settings_values").optInt("generalSettings.autoLockTime")==25,
+            "unsolicited snapshot was discarded");
+        check(idle.result.has("reported_settings_at_ms"),"unsolicited snapshot left no timestamp");
+        // The same snapshot must NOT be filed as unsolicited while a trial owns the query, or the
+        // trial's own evidence would be overwritten by a reply it did not ask for.
+        SettingsQueryIntegrationCheck owned=new SettingsQueryIntegrationCheck();
+        owned.begin("trial");owned.settingsQuery.sent(true,SystemClock.elapsedRealtime());
+        owned.captureSettingsReply("LAUNCHER",4,values(40));
+        check(owned.settingsQuery.passed(),"trial reply stopped being attributed to the trial");
+        check(owned.result.getJSONObject("reported_settings_values").optInt("generalSettings.autoLockTime")==40,
+            "trial snapshot missing");
+        System.out.println("production settings snapshot validation and three serial reads passed");
+    }
+}

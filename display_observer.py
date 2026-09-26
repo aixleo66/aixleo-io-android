@@ -38,9 +38,11 @@ def present(result, pid, available=True, confirmation=None):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--serial', required=True)
+    parser.add_argument('--profile', choices=('daily', 'sdk-lab'), default='sdk-lab')
     parser.add_argument('--port', type=int, default=8791)
     parser.add_argument('--seconds', type=int, default=1800)
     args = parser.parse_args()
+    package = lab.LAB_PACKAGE if args.profile == 'sdk-lab' else lab.PACKAGE
     adb = str(lab.settings()['adb'])
     state = {'transport': 'waiting', 'live': False, 'result': {}}
     lock = threading.Lock()
@@ -56,11 +58,11 @@ def main():
         confirmation = None
         while not stop.is_set():
             try:
-                code, raw = run('shell', 'run-as', lab.PACKAGE, 'cat', 'files/result.json')
+                code, raw = run('shell', 'run-as', package, 'cat', 'files/result.json')
                 if code or len(raw) > 262144:
                     raise ValueError('No bounded result')
                 result = json.loads(raw)
-                code, raw_pid = run('shell', 'pidof', lab.PACKAGE)
+                code, raw_pid = run('shell', 'pidof', package)
                 if code not in (0, 1):
                     raise ValueError('PID unavailable')
                 previous = result

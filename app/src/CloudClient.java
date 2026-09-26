@@ -43,7 +43,21 @@ final class CloudClient {
     }
     static void validateConfig(JSONObject config) throws Exception {
         KnowledgeClient.validate(config);
-        if(!java.util.Arrays.asList("deepseek","knowledge").contains(config.optString("assistant_provider","deepseek")))throw new Failure("助手服务选项无效");
+        if(!java.util.Arrays.asList("deepseek","dashscope","knowledge").contains(config.optString("assistant_provider","deepseek")))throw new Failure("助手服务选项无效");
+        int autoExit=config.optInt("assistant_auto_exit_seconds",15);
+        if(autoExit<10||autoExit>120)throw new Failure("助手自动退出须为 10–120 秒");
+        // Third definition of this default; the other two are SdkProbeActivity and
+        // CloudConfig.defaults(). They must agree or a validated import silently changes the
+        // window. tests/test_displayed_answer.py checks all three.
+        int followup=config.optInt("assistant_followup_seconds",10);
+        if(followup<10||followup>120)throw new Failure("助手续问窗口须为 10–120 秒");
+        if(config.has("assistant_followup_enabled")&&!(config.opt("assistant_followup_enabled") instanceof Boolean))
+            throw new Failure("助手续问开关必须为布尔值");
+        // Same three-copy rule as the assistant windows above: CloudConfig.defaults(),
+        // GlassesRecorder and this validator must agree or a validated import silently changes it.
+        int recordingMinutes=config.optInt("recording_max_minutes",30);
+        // 120 minutes at the measured ~27.5 KB/s is about 198 MB, inside RecordingFile.LIMIT.
+        if(recordingMinutes<5||recordingMinutes>120)throw new Failure("录音自动结束须为 5–120 分钟");
         for (String p : new String[]{"deepseek", "dashscope"}) {
             endpoint(config.getString(p + "_url"), p);
             String model = config.getString(p + "_model"), key = config.optString(p + "_key", "");
@@ -51,18 +65,41 @@ final class CloudClient {
             if (key.length() > 512 || (!key.isEmpty() && !key.matches("[!-~]+"))) throw new Failure("Key 格式无效");
         }
     }
+    static boolean usesKnowledge(String prompt) {
+        return prompt != null && prompt.contains("知识库");
+    }
     static JSONObject ask(JSONObject config, String prompt) throws Exception {
         return ask(config, prompt, new Cancellation());
     }
     static JSONObject ask(JSONObject config, String prompt, Cancellation cancel) throws Exception {
+        return ask(config,prompt,cancel,false);
+    }
+    static JSONObject askReadingTrial(JSONObject config,String prompt,Cancellation cancel)throws Exception{
+        return askReadingTrial(config,prompt,new JSONArray(),cancel);
+    }
+    static JSONObject askReadingTrial(JSONObject config,String prompt,JSONArray history,Cancellation cancel)throws Exception{
+        return ask(config,prompt,history,cancel,true);
+    }
+    private static JSONObject ask(JSONObject config,String prompt,Cancellation cancel,boolean readingTrial)throws Exception{
+        return ask(config,prompt,new JSONArray(),cancel,readingTrial);
+    }
+    private static JSONObject ask(JSONObject config,String prompt,JSONArray history,Cancellation cancel,boolean readingTrial)throws Exception{
         cancel.check();
-        if(config.optString("assistant_provider","deepseek").equals("knowledge"))return KnowledgeClient.ask(config,prompt,cancel);
         if (prompt.trim().isEmpty() || prompt.length() > 2000) throw new Failure("问题须为 1–2000 字");
-        JSONArray messages = new JSONArray().put(new JSONObject().put("role", "system")
-            .put("content", "你是眼镜上的中文助手。用不超过100个汉字的纯文本简洁回答，不用Markdown。没有工具执行能力，不声称已执行操作。只提供稳妥、可实际采用的建议；不建议把塑料袋套在头上、遮挡口鼻等可能导致窒息或受伤的应急做法。没有安全的替代办法时，建议等待、避险或求助。"))
-            .put(new JSONObject().put("role", "user").put("content", prompt));
-        return call(config, "deepseek", new JSONObject().put("messages", messages).put("max_tokens", 256)
-            .put("thinking", new JSONObject().put("type", "disabled")), 500, cancel);
+        if(usesKnowledge(prompt))return KnowledgeClient.ask(config,prompt,cancel);
+        JSONArray messages=AssistantConversation.requestMessages(
+            "你是眼镜上的中文助手。用不超过"+(readingTrial?"400个汉字的纯文本回答":"100个汉字的纯文本简洁回答")+"，不用Markdown。没有工具执行能力，不声称已执行操作。只提供稳妥、可实际采用的建议；不建议把塑料袋套在头上、遮挡口鼻等可能导致窒息或受伤的应急做法。没有安全的替代办法时，建议等待、避险或求助。",
+            history,prompt);
+        // The assistant provider is a setting, not a constant: DeepSeek returned HTTP 503 for a
+        // stretch on 2026-09-20 while its status page reported degraded performance, and the
+        // Aliyun account already in use for ASR also serves an OpenAI-compatible chat endpoint.
+        String provider=config.optString("assistant_provider","deepseek");
+        if(provider.equals("knowledge"))provider="deepseek";
+        JSONObject body=new JSONObject().put("messages", messages).put("max_tokens", readingTrial?1024:256);
+        // thinking:disabled is a DeepSeek-specific field; Aliyun rejects unknown parameters.
+        if(provider.equals("deepseek"))body.put("thinking", new JSONObject().put("type", "disabled"));
+        JSONObject result=call(config, provider, body, readingTrial?2000:500, cancel);
+        return result.put("context_messages",Math.max(0,messages.length()-2));
     }
     static JSONObject transcribe(JSONObject config, byte[] audio, String mime) throws Exception {
         return transcribe(config, audio, mime, new Cancellation());
@@ -85,7 +122,10 @@ final class CloudClient {
         cancel.check();
         String key = config.optString(provider + "_key");
         if (key.isEmpty()) throw new Failure("请先填写并保存 " + provider + " Key");
-        body.put("model", config.getString(provider + "_model")).put("stream", false);
+        // dashscope_model is the ASR model; chat must not reuse it.
+        String modelKey=provider.equals("dashscope")&&body.has("messages")&&!body.has("asr_options")
+            ?"dashscope_text_model":provider + "_model";
+        body.put("model", config.optString(modelKey, config.optString(provider + "_model"))).put("stream", false);
         HttpsURLConnection connection = (HttpsURLConnection)endpoint(config.getString(provider + "_url"), provider).openConnection();
         long started = android.os.SystemClock.elapsedRealtime();
         try {
@@ -108,7 +148,7 @@ final class CloudClient {
             if (provider.equals("deepseek") && !AnswerPolicy.canDeliver(text)) throw new Failure("回答触发本地危险建议拦截，未显示或发送；请换个问法");
             for (int i = 0; i < text.length(); i++) if (Character.isISOControl(text.charAt(i)) && text.charAt(i) != '\n') throw new Failure("输出含控制字符");
             JSONObject result = new JSONObject().put("status", "completed").put("provider", provider).put("text", text)
-                .put("model", config.getString(provider + "_model")).put("elapsed_ms", android.os.SystemClock.elapsedRealtime() - started);
+                .put("model", config.optString(modelKey, config.optString(provider + "_model"))).put("elapsed_ms", android.os.SystemClock.elapsedRealtime() - started);
             JSONObject usage = response.optJSONObject("usage"), safe = new JSONObject();
             if (usage != null) for (String name : new String[]{"prompt_tokens", "completion_tokens", "total_tokens"})
                 if (usage.opt(name) instanceof Number) safe.put(name, usage.get(name));

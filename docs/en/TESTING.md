@@ -2,23 +2,23 @@
 
 # Feature testing guide
 
-After building and installing the app, use these steps to check connection, recording, voice Q&A, and notifications. See [compatibility](COMPATIBILITY.md) for tested devices and systems and [test records](AUDIT.md) for version-specific results. When sharing results, include the commit and device environment, and redact recordings, questions, notifications, and logs.
+After building and installing the app, use these steps to check connection, recording, voice Q&A, todos, weather and notifications. See [compatibility](COMPATIBILITY.md) for tested devices and systems and [test records](AUDIT.md) for version-specific results. When sharing results, include the commit and device environment, and redact recordings, questions, notifications, and logs.
 
 ## Prerequisites
 
-Complete [first setup](BUILDING.md): enter the glasses address, grant Bluetooth permissions, pair when required, configure your own service keys, and enable **实时识别，边说边显示提问** (real-time recognition). Notifications default to **仅监听检查** (observe-only); verify normal phone alerts before turning it off. Do not repeatedly factory-reset.
+Complete [first setup](BUILDING.md): exit the official app process, pair when needed, select your glasses in this app, and wait for the session to become ready. Recording needs no cloud service. Assistant Q&A needs your own speech and model service configuration. Notifications require system access and a selected source. Do not treat unbinding or factory reset as a routine reconnect step.
 
-Local recording needs no cloud key. Streaming ASR and model Q&A use configured services; run these only when ready to upload test speech. The prerecorded-audio diagnostic button depends on a development fixture that is not included, so it does not work on a fresh install. Use **选择音频上传转写** to explicitly choose your own file instead. Chinese UI labels are retained here to help identify the actual controls.
+Cloud speech and model tests can upload personal content and incur charges; use only your own nonsensitive samples. For offline-file transcription tests, explicitly choose an authorized test file.
 
 | Scenario | Action | Pass condition |
 | --- | --- | --- |
-| Connection/standby | Save configuration, connect, and wait for standby | Actual authentication success and standby ready; a flashing blue LED alone is not a successful connection |
-| Local recording | Start on the Recording page, speak for 10–20 seconds, stop/save, and play | A playable phone file, clear speech, plausible duration; note progress-bar issues; no cloud upload |
-| Streaming voice | Wake the glasses and ask a short question | The question appears progressively while speaking, followed by an answer on the glasses |
-| Two consecutive rounds | Wake again as the first answer appears and ask a different question | The second round works without touching the phone; questions/answers match and old results do not overwrite the new round |
-| Screen off | Turn the phone screen off, wait one minute, then wake the glasses and ask | Capture continues, question text appears, and an answer completes without a brief flash/exit; one minute is not overnight reliability |
-| Notifications | Grant access, select apps, enable forwarding; check phone alerts in observe-only first, then turn it off and receive a selected app's notification | Normal phone alert and complete glasses message; each notification has its own ID; burst queuing is still an optimization item |
-| Optional knowledge experiment | Configure the dedicated Gateway and ask | Answer appears on glasses; phone sources match the server's structured `sources`; an empty array does not prove retrieval |
+| Connection/standby | Connect a paired pair of glasses and inspect authentication, state, and standby | Session readiness; LED, battery, or one authentication callback alone is insufficient |
+| Local recording | Record about 20 seconds from the phone or glasses menu; stop and play it in the phone recording list | Playable Ogg Opus file and plausible duration; recording does not automatically transcribe |
+| Assistant/follow-up | Ask a short question, observe the lens answer, then ask another within the follow-up window | Distinct matching rounds with no stale result overwrite; inspect exit and next wake-up |
+| Todo | Add and sync a test item on the phone, complete it on the glasses, then check the phone | Both sides agree, and another sync creates no duplicate |
+| Weather/clock | Grant location and connect; inspect temperature and time on the glasses | Temperature has a value and time matches the phone; one round does not prove all-day refresh |
+| Notifications | Grant Android notification access, select a source, and cause a real system notification | It appears in the phone notification shade first; the wearer then confirms the lens message |
+| Optional knowledge experiment | Configure your own Gateway and ask | Check the answer and sources on the phone; an empty source list does not prove retrieval |
 
 ## Idle check
 
@@ -36,4 +36,4 @@ Output is saved under `out/power-tests/` and includes raw state; redact it befor
 
 For each test record: date, version/hash, phone/OS, firmware (write unknown if unknown), prerequisites, steps, protocol result, wearer observation, whether cloud services were called, anomalies, and redacted evidence. Use the [observer](OBSERVER.md), but do not treat its reconstructed view as real lens confirmation.
 
-Past problems included a missing initial device address, streaming ASR off by default, observe-only notifications not forwarding, OS background limits, follow-up timing while an answer is displayed, and capture exiting with the phone screen off. Include those conditions in testing; repeated pairing is not a substitute for diagnosis. Notification latency/bursts, long recordings, sustained power use, and process/restart recovery need dedicated validation. For changes to diagnostic entry points or session lifecycles, also verify normal internal connection after entry-point isolation and that failed/duplicate instances cannot clean up a live session. See [security mechanisms](SECURITY.md) and the [audit index](AUDIT.md) for validation status.
+Known limits include occasional connection loss, long-answer exit timing, knowledge citations, in-place notification updates, and long recording. If connection fails, first check whether the official app still owns the session and whether this app is truly ready; repeated unbinding is not a diagnosis. All-day background operation and other phones and firmware need separate validation. See the [feature limits](FEATURES-0.2.1.md) and [troubleshooting](TROUBLESHOOTING.md).

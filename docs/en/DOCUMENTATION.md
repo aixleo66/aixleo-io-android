@@ -23,17 +23,19 @@ Default documentation follows the current branch. When using an older commit, re
 
 ## Verifying source hashes
 
-`source-manifest.json` describes original file bytes in the selected commit. On Windows, `core.autocrlf` may convert working-tree LF to CRLF, causing direct file hashes to differ. This does not automatically mean corruption, and is not a reason to rewrite historical manifests. Use the repository script to read binary Git blobs:
+`source-manifest.json` records byte hashes for source, documentation, configuration templates, and bundled dependencies, excluding the manifest itself. Verify committed bytes in a Git checkout, or extracted bytes in a source archive:
 
 ```powershell
 python verify_source.py --commit HEAD
+python verify_source.py --worktree
+python verify_source.py --distribution
 ```
 
-Replace HEAD with a specific commit already available locally if needed. The script reads the manifest and files from the same commit, bypasses PowerShell text pipelines, and makes no network, cloud, or device calls. It does not check uncommitted working-tree changes. A source archive without `.git` cannot use this method; obtain the corresponding Git commit first. Vendor payload entries and signatures/build artifacts remain subject to their own manifests and build checks.
+Replace HEAD with a specific local commit if needed. `--worktree` works for an archive without `.git`; `--distribution` also flags unlisted files and should run on a freshly extracted copy before generating local config or build output. These modes use no network, cloud, or device. Windows `core.autocrlf` can change working-tree line endings, so Git and worktree checks can differ; check the release format before interpreting a mismatch. The manifest itself needs a trusted Git commit or external digest. Vendor payload entries and build artifacts have separate build checks.
 
 ## Chinese and English parity rules
 
-Keep identical relative document paths under `docs/cn` and `docs/en`. When behavior changes, update both corresponding pages and keep language switches, code examples, parameters, limitations, and test status consistent. The root README defaults to Chinese; legacy entry links remain valid. Do not translate or rewrite original third-party license texts.
+Keep matching relative paths under `docs/cn` and `docs/en` as a rule. When behavior changes, update both corresponding pages and keep language switches, examples, limitations, and test status aligned. The feature matrix, device-capability overview and troubleshooting guide all have full Chinese and English versions; content links should prefer the matching language. The root README defaults to Chinese. Do not translate original third-party license texts.
 
 ## Each version iteration
 

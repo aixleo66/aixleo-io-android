@@ -14,6 +14,14 @@ final class VendorRouteObserver implements AutoCloseable {
     private final boolean enabled;
     private final int level;
     private volatile boolean closed;
+    volatile String connectionFailure="";
+    private final java.util.LinkedHashSet<String> connectionPhases = new java.util.LinkedHashSet<>();
+    private int connectionLogCount;
+    synchronized org.json.JSONObject diagnostics() throws Exception {
+        return new org.json.JSONObject().put("observed_log_count",connectionLogCount)
+            .put("phases",new org.json.JSONArray(connectionPhases))
+            .put("observer_active",logger.getField("e").get(null)==observer);
+    }
     VendorRouteObserver(VendorRuntime runtime, Supplier<String> deviceId, Handler handler, Receiver receiver) throws Exception {
         logger = runtime.type("c4.i"); previous = logger.getField("e").get(null);
         enabled = logger.getField("b").getBoolean(null); level = logger.getField("d").getInt(null);
@@ -24,6 +32,15 @@ final class VendorRouteObserver implements AutoCloseable {
                 if (method.getName().equals("equals")) return proxy == args[0];
                 if (method.getName().equals("hashCode")) return System.identityHashCode(proxy);
                 return "LabRouteMetadata";
+            }
+            if(!closed&&args!=null&&args.length==4&&args[1] instanceof String&&args[2] instanceof String){
+                String reason=VendorConnectionDiagnostics.classify((String)args[1],(String)args[2]);
+                if(!reason.isEmpty())connectionFailure=reason;
+                synchronized(VendorRouteObserver.this) {
+                    if("BLEConnectManager".equals(args[1]))connectionLogCount++;
+                    String phase=VendorConnectionDiagnostics.phase((String)args[1],(String)args[2]);
+                    if(!phase.isEmpty())connectionPhases.add(phase);
+                }
             }
             // Never forward, retain or print SDK payload/account/crypto logs.
             if (closed || args == null || args.length != 4 || !"RNChannelImpl".equals(args[1]) || !(args[2] instanceof String)) return null;

@@ -2,19 +2,23 @@
 
 # Changelog
 
+## 0.2 series (source and app version 0.2.1)
+
+This is the cumulative difference from the public 0.14 preview. Version 0.2.1 itself changes only notification filtering relative to 0.2.0.
+
+- Adds limited automatic reconnect and more detailed readiness checks.
+- Adds glasses-initiated recording saved locally as Ogg Opus, playback, and mark records. The older five-minute WAV description is historical; long recordings and several advanced controls remain unverified or unimplemented.
+- Adds short follow-up voice rounds, some spoken recording/todo actions, phone–glasses todo synchronization, location-based weather and phone clock sync.
+- Adds limited settings and charging-case status observations. Official controls are not automatically implemented by this app.
+- **The only new rule in 0.2.1**: notifications carrying the foreground-service flag or the `service` category are no longer forwarded, so they stop queuing ahead of real messages. One real-device "running" notice was not matched (cause unconfirmed) and was still forwarded; see the [feature matrix](FEATURES-0.2.1.md).
+
+See the [feature and validation matrix](FEATURES-0.2.1.md) and the [official-capability overview](DEVICE-CAPABILITIES.md) for precise scope.
+
 This page records features, fixes, and changes to usage. See [test records](AUDIT.md) for version-specific results.
 
-## Unreleased
+## Project name
 
-- Removed the provenance page's contribution-record checklist and further internal review instructions from provenance, third-party, compatibility, and testing pages.
-
-- Rewrote the project introduction for users and simplified repeated audit wording in building, privacy, Gateway, and testing guides. Licensing details and maintenance procedures remain in their dedicated documents; Chinese and English are updated together.
-
-- Renamed the project to **Aixleo iO Android** and the repository to `aixleo-io-android`, preserving commit history.
-- Updated the app display name, overview titles, and repository links. Device names, Turbo-IO attribution, vendor provenance, and licensing notices are retained.
-- The Android application ID, signing mechanism, and storage paths are unchanged. This change has not been installed on a phone and adds no device validation claims.
-
-- After renaming, all 59 existing automated tests and build/signature/alignment checks passed; the source manifest was updated.
+The project is **Aixleo iO Android**, with repository name `aixleo-io-android`. See [building](BUILDING.md) for current build identity. Earlier records below retain their historical scope; their test counts and capabilities are not the current version.
 
 ## 0.14 interaction-fix source preview — 2026-09-12
 

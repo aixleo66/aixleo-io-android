@@ -1,0 +1,41 @@
+package dev.xr.rayneo.probe;
+import org.json.JSONObject;
+
+public final class AsrSessionSettingsCheck {
+    static void check(boolean value,String name){if(!value)throw new AssertionError(name);}
+    public static void main(String[] args)throws Exception{
+        JSONObject config=new JSONObject().put("untouched","value");
+        StreamingAsr baseline=new StreamingAsr(config,null);
+        check(baseline.requestedSilenceDurationMs==700,"old constructor retains 700");
+        for(int value:new int[]{700,1500}){
+            StreamingAsr stream=new StreamingAsr(config,null,value);
+            JSONObject wire=StreamingAsr.sessionSettings(stream.requestedSilenceDurationMs);
+            check(wire.optString("input_audio_format").equals("pcm"),"pcm retained");
+            check(wire.optInt("sample_rate")==16000,"rate retained");
+            check(wire.getJSONObject("input_audio_transcription").optString("language").equals("zh"),"language retained");
+            JSONObject vad=wire.getJSONObject("turn_detection");
+            check(vad.optString("type").equals("server_vad"),"server VAD retained");
+            check(vad.optInt("silence_duration_ms")==value,"requested threshold reaches wire");
+            check(((Number)vad.get("threshold")).doubleValue()==0.0,"threshold retained");
+            check(config.length()==1&&config.optString("untouched").equals("value"),"config not mutated");
+            check(!stream.worker.isAlive(),"construction never starts network");
+        }
+        for(int value:new int[]{-1,0,699,701,1499,1501,Integer.MAX_VALUE}){
+            try{new StreamingAsr(config,null,value);throw new AssertionError("invalid constructor allowed");}
+            catch(IllegalArgumentException expected){}
+            try{StreamingAsr.sessionSettings(value);throw new AssertionError("invalid payload allowed");}
+            catch(IllegalArgumentException expected){}
+        }
+    }
+}
+final class StreamingAsr {
+    interface Listener{}
+    final JSONObject config;
+    final Listener listener;
+    final int requestedSilenceDurationMs;
+    final int captureWindowMs;
+    final int continuationGraceMs;
+    final Thread worker;
+    void run(){}
+    // PRODUCTION_METHODS
+}

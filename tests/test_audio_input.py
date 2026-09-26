@@ -26,7 +26,7 @@ class AudioInputChecks(unittest.TestCase):
         dependencies = os.pathsep.join(map(str,[settings['android_jar'], *list((lab.ROOT / 'app/lib').glob('*.jar'))]))
         with tempfile.TemporaryDirectory() as directory:
             lab.command([lab.tool(settings, 'javac'), '-encoding', 'UTF-8', '-classpath', dependencies, '-d', directory,
-                         *[lab.ROOT / 'app/src' / name for name in ('CloudClient.java', 'CloudConfig.java', 'AudioInput.java', 'AnswerPolicy.java', 'KnowledgeClient.java', 'KnowledgeRunState.java')],
+                         *[lab.ROOT / 'app/src' / name for name in ('AssistantConversation.java', 'CloudClient.java', 'CloudConfig.java', 'ConfigPersistence.java', 'AudioInput.java', 'AnswerPolicy.java', 'KnowledgeClient.java', 'KnowledgeRunState.java')],
                          lab.ROOT / 'tests/CloudCancellationCheck.java'])
             import os
             result = lab.command([lab.tool(settings, 'java'), '-cp', directory + os.pathsep + dependencies,

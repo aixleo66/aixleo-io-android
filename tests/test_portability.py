@@ -135,7 +135,9 @@ class PortabilityChecks(unittest.TestCase):
             self.assertEqual(r['status'], 'blocked_or_failed')
             self.assertFalse(r['probe_result']['connect_attempted'])
             self.assertTrue(r['process_stopped'])
-            launch = next(c for c in calls if 'start' in c)
+            # 09-23 plan 0.5c: SDK sessions start the hosting foreground service, not an Activity.
+            launch = next(c for c in calls if 'start-foreground-service' in c)
+            self.assertIn('dev.xr.rayneo.probe.SESSION', launch)
             self.assertEqual(launch[launch.index('pairing_ready') + 1], 'false')
 
     def test_permissions_require_current_user_readback(self):

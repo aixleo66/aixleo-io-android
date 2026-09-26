@@ -26,3 +26,6 @@ Credential scan scopes and results are listed in [audit records](AUDIT.md). Patt
 There is currently no dedicated private vulnerability reporting channel. Use an existing contact channel with the maintainer, or describe the issue category in an Issue without exposing usable credentials, personal data, or sensitive exploit details.
 
 Android documentation: [Exported component risks](https://developer.android.com/privacy-and-security/risks/android-exported) and [Debuggable app risks](https://developer.android.com/privacy-and-security/risks/android-debuggable).
+
+
+A small local answer filter (AnswerPolicy) covers selected patterns only; it is not a comprehensive content-safety system. See [tools](TOOLS.md) for CLI network and device effects.

@@ -1,54 +1,74 @@
-[简体中文](../cn/BUILDING.md) | [English](BUILDING.md)
+# Build and first use: 0.2.1
 
-# Installation, configuration, and research builds
+[简体中文](../cn/BUILDING.md) | [Project home](../../README.md)
 
-Follow this guide to build and install the app, then configure your glasses, voice services, and notifications. The repository includes the pinned vendor communication dependency; no prebuilt APK is currently provided. Builds retain debug capabilities; see [Security](SECURITY.md).
+This builds an Android app, not a Gradle AAR. The tested environment is **Windows x64, Python 3.10+, Git, JDK 21 and Android SDK 36 build-tools**. Python and Git must be on PATH; the full offline test suite invokes Git. `bootstrap` downloads and verifies pinned JDK/Android tools but does not change PATH. Glasses connection requires Android 12+, despite the API 29 installation declaration.
 
-The phone UI currently uses Chinese labels. English explanations below retain the actual Chinese labels so you can find the controls. Documentation translation does not imply that the app UI or ASR language configuration has been localized. Run all commands from the repository root, not this documentation directory.
+The Windows build temporary directory must use an ASCII-only path. If your username or TEMP contains non-ASCII characters, set `$env:RAYNEO_BUILD_TEMP = "C:/Temp"` in the same PowerShell window before building; the tool creates the directory.
 
-Glasses connectivity on the test phone requires **Android 12+ / API 31**. The Manifest's API 29 is only an installation minimum; current connection initialization rejects Android 10/11. APIs 31–35 lack full device validation, while historical device records use API 36. See [compatibility](COMPATIBILITY.md).
+## Prepare tools and signing
 
-## First installation and configuration after building
-
-1. Complete the build below. Find the resulting APK through `out/latest-build.json`, install it on your test phone, and launch “Aixleo iO Android” from the home screen. If signatures conflict, back up and verify the source first; do not delete existing data just to overwrite the installation. Do not substitute an APK from another version.
-2. Open **设备 → 模型与语音服务** (Device → Model and voice services). Enter your **眼镜蓝牙地址** (glasses Bluetooth address) and save. It is initially blank; there is currently no scan-and-select device list. Obtain the verified address from your own device information or diagnostic records, using uppercase hexadecimal pairs separated by colons. Do not enter the phone's address or copy somebody else's example. First connection cannot complete without this address.
-3. Return to Device, grant Bluetooth permissions, and connect your glasses. Follow Android's pairing prompt. If initial system pairing is needed, use **设备 → 开发者诊断 → 完成系统配对（首次使用）**. Resolve any binding to the official app when switching clients. Official unbinding may erase glasses data; do not repeatedly factory-reset for ordinary reconnection. Wait for **业务连接已认证** (business connection authenticated) before testing recording.
-4. Test local recording, saving, and playback first. For the voice assistant, enter your own ASR/model keys in the service page; defaults are empty. Verify the model names for your services. Enable and save **实时识别，边说边显示提问** (real-time recognition; show the question while speaking) to get incremental text. It is off on a fresh install; off uses the older batch flow. Enable standby on the Assistant page and wait for **已待命** before waking the glasses.
-5. For notifications, grant Android notification access, enable the forwarding master switch, and select apps. **仅监听检查** (observe-only check) is on by default and prevents forwarding. First verify that phone alerts still work, then turn observe-only off and receive a new notification from a selected app. Check both the phone and glasses. Do not disable normal phone alerts to enable glasses forwarding.
-6. Remote knowledge Q&A is optional and experimental; its usability and stability have not been sufficiently validated for this version. The Android adapter uses `rokid-harness.v1`, originally designed for Rokid, as one way to connect to local Codex. No Rokid Harness project, server, or maintainer service is included. Independent experiments need a compatible WSS Gateway and token; an arbitrary model HTTP endpoint will not work. See [origin, scope, and protocol](GATEWAY.md). Otherwise leave **语音与默认文字提问使用知识库** (use the knowledge service for voice and default text questions) off and use your configured DeepSeek service.
-
-The **验证阿里云 ASR（上传预置语音）** button requires an audio fixture from the original development environment. A fresh install does not have it and the operation fails. Instead use **选择音频上传转写** (select audio to upload for transcription), explicitly choosing a test file you are entitled to upload. Uploading may incur charges.
-
-See [tests](TESTING.md), [observer](OBSERVER.md), and [diagnostic isolation and remaining debug limits](SECURITY.md).
-
-## Build your own APK
-
-Python currently orchestrates javac/D8. There is no Gradle library/AAR. Windows x64 is the validated build environment, with Python 3.10+, JDK 21, and Android SDK 36.
+From the repository root, without overwriting an existing local configuration:
 
 ```powershell
 python lab.py bootstrap
 Copy-Item config.example.json config.local.json
 ```
 
-Bootstrap downloads the pinned toolchain and verifies hashes. Existing tools can be specified with `java_home`, `build_tools`, `android_jar`, and `adb`. Tool downloads remain subject to their providers' licenses.
+The example `sample` uses the bundled `vendor-payload.jar`; a separate official APK is unnecessary. `config.local.json` contains local build-tool and signing paths, not phone service credentials. See [third-party notices](THIRD_PARTY_NOTICES.md).
 
-Create a local debug key **only if** `private/keys/local-debug.p12` does not already exist. Do not overwrite an existing key.
+Only if you do not already have a signing key, create your own debug identity. Resolve keytool through the build script so a fresh bootstrap does not depend on a system keytool:
 
 ```powershell
+$keytoolPath = python -c "import lab; print(lab.tool(lab.settings(), 'keytool'))"
 New-Item -ItemType Directory -Force private/keys
-keytool -genkeypair -keystore private/keys/local-debug.p12 -storetype PKCS12 -storepass android -keypass android -alias research-debug -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Local Research Debug"
+& $keytoolPath -genkeypair -keystore private/keys/local-debug.p12 -storetype PKCS12 -storepass android -keypass android -alias research-debug -keyalg RSA -keysize 2048 -validity 3650 -dname "CN=Local Research Debug"
 ```
 
-If `keytool` is not on PATH, use `bin/keytool.exe` from the configured JDK. The bootstrap JDK location is in the toolchain manifest. `android` is a local debug-password convention, not a maintainer secret or production-signing scheme. No private signing key is distributed.
+Keep the key for future upgrades. This is a local debug identity with the password/alias expected by the script, not the maintainer's signature. A different signature cannot overwrite an installed app; back up needed data before deciding whether to uninstall. Uninstalling or clearing app data deletes local recordings, records and configuration. Never commit credentials, local signing files or build output.
+
+## Check, build and install
+
+Before generating local files, `python verify_source.py --distribution` checks an extracted distribution. Afterwards `--worktree` checks the listed source files only.
 
 ```powershell
 python lab.py doctor
-python lab.py build
 python -m unittest discover -s tests
+python lab.py build --profile sdk-lab
+python lab.py verify
 ```
 
-The example configuration points to the included vendor payload. The build accepts only the pinned official sample or pinned payload hash. Builds go into `out/builds`; `out/latest-build.json` identifies the latest one. An APK signed with your own key may not overwrite a differently signed installation.
+Use `sdk-lab`. `lab.py` chooses application ID `dev.xr.rayneo.sdklab`, while `app/lab-version.json` provides **0.2.1 / 2001**. The older identity in source AndroidManifest.xml is replaced during this build. `daily` is a retired experiment profile.
 
-Diagnostic Activities are not exported. `lab.py run --execute` rejects that path before installing or operating on the phone. Do not re-export components to bypass this check. Install and connect through the phone app. The debug build still permits user-authorized ADB `run-as` state reads and commands for an existing session. Launching a diagnostic Activity and sending a command to an existing session are different paths.
+Enable USB debugging and authorize this computer. With only the target phone connected, install the new APK (add ADB `-s SERIAL` for multiple devices):
 
-Automated tests make no real cloud or glasses calls; some require the JDK/Android compilation environment. Then follow the [test guide](TESTING.md) to check actual connection and lens output. See [test records](AUDIT.md) for recorded results.
+```powershell
+$adbPath = python -c "import lab; print(lab.settings()['adb'])"
+& $adbPath devices
+$buildInfo = Get-Content out/latest-sdk-lab-build.json -Raw | ConvertFrom-Json
+$apkPath = Join-Path $buildInfo.directory 'rayneo-init-probe.apk'
+& $adbPath install -r $apkPath
+```
+
+Accept the phone's USB installation prompt if shown. The output directory is recorded in `out/latest-sdk-lab-build.json`. The disabled legacy `lab.py run --execute` diagnostic does not install or connect the app for you.
+
+## First connection
+
+Open **AIX IO SDK Lab**, select “验证 SDK 初始化（不连接眼镜）” (initialize without connecting), then “进入连接与录音验证”. In the app shell, “设置 → 眼镜与连接” opens connection controls.
+
+End the official app's session and exit its process before connecting the same glasses. If its binding blocks pairing, unbind there, close it, then follow the glasses' pairing prompt. Our unbinding tests did not erase glasses data; later official-app/firmware behavior is unverified. Unbinding is not a routine reconnect step. Grant Bluetooth/nearby-device access and select your glasses. Authentication or a battery report alone does not establish a ready business session.
+
+## Enable features
+
+| Goal | App entry and minimum check |
+| --- | --- |
+| Local recording | “功能 → 随身录音 → 开始录音”, then “结束并保存”. Play from “记录”; “导出音频” exports a file. The default maximum is 30 minutes, configurable from 5–120, not proof of tested long-duration stability. Recording does not automatically transcribe. |
+| Cloud Q&A | In “设置 → 助手服务”, open service configuration, enter your DashScope speech key plus the selected answer provider's key, full endpoint and available model, then save. In “功能 → 语音助手”, enable glasses voice standby and wake the assistant. No keys are bundled. |
+| Answer provider | DeepSeek and DashScope are supported choices. Use models available to your account and the matching credentials. Some old labels still say DeepSeek; `assistant_provider` controls actual routing. |
+| ASR diagnostics | Choose “选择音频上传转写” with your own nonsensitive audio. The older preset-upload button needs `asr-test.wav` on the phone, which is not included; a missing sample is not evidence of a bad key/network. Phone microphone capture remains diagnostic, not a standalone phone voice assistant. |
+| Todos | Use “功能 → 我的待办”, create an item and check synchronization; mark it complete on the glasses and compare the phone. Assistant voice creation is distinct from creation in the native glasses list. |
+| Weather | Open “功能 → 当地天气”, allow location and enable/refresh. Opening this page with permission already granted enables automatic weather. It calls a weather service using phone location, not the phone's weather app. Background access depends on system permission; see [privacy](PRIVACY.md). |
+| Notifications | “功能 → 消息提示” or “设置 → 消息偏好”: grant notification access and select sources. Generate an actual system notification and check the glasses. |
+| Optional knowledge | Configure your compatible WSS Gateway and token. No server is bundled; a regular HTTP chat endpoint is not compatible. See [contract](GATEWAY.md). |
+
+Speech/model requests may incur charges. `llm.local.json` is for the computer-side `model_probe.py` only and does not configure the phone. Diagnostic helpers default to `sdk-lab`; use `--profile daily` only for the legacy package. See [feature limits](FEATURES-0.2.1.md), [validation](audits/2026-09-26-0.2.1.md) and [troubleshooting](TROUBLESHOOTING.md). Building successfully does not establish device acceptance on another phone/firmware.

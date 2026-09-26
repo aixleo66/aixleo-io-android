@@ -13,8 +13,10 @@ final class ActivityInteractionCheck {
     private final CommandWait commandWait=new CommandWait();
     private CloudClient.Cancellation jobCancellation;
     private Capture recording;
-    private String jobId,displayedCloudId="";
+    private String jobId,displayedCloudId="",hiddenCloudJobId="";
     private boolean busy,destroyed;
+    /** Mirrors the Activity field consumed by sendSessionCommand when writing a setting. */
+    private JSONObject pendingSettingWrite;
     private final Text status=new Text(),answer=new Text();
     private final Handler handler=new Handler();
     private final File files;
@@ -57,6 +59,21 @@ final class ActivityInteractionCheck {
             page.busy=false;page.clearAnswer();page.sendToGlasses();check(page.writes==1&&!page.currentAnswer.available());
             page.renderAnswer(new JSONObject().put("answer",new JSONObject().put("text","full C").put("lens_text","short C").put("sources",new JSONArray())));
             check(page.currentAnswer.lensText.equals("short C")&&page.currentAnswer.text.equals("full C"));
+            String unknown=page.renderAnswer(new JSONObject().put("answer",new JSONObject().put("text","full D").put("lens_text","short D")
+                .put("retrieval_status","unknown").put("sources",new JSONArray())));
+            check(unknown.startsWith("知识库依据状态未确认")&&page.currentAnswer.lensText.equals("short D"));
+        }else if(args[0].equals("background-result")){
+            ActivityInteractionCheck page=new ActivityInteractionCheck(files);
+            page.refreshGlassesAnswer(new JSONObject().put("job_id","first").put("status","completed").put("text","old answer"));
+            check(page.currentAnswer.available());
+            JSONObject failure=new JSONObject().put("job_id","second").put("status","failed").put("error","Gateway unavailable");
+            page.busy=true;page.refreshGlassesAnswer(failure);check(page.currentAnswer.available());
+            page.busy=false;page.refreshGlassesAnswer(failure);
+            check(page.answer.value.contains("Gateway unavailable")&&!page.currentAnswer.available());
+            page.sendToGlasses();check(page.writes==0);
+            page.status.setText("User action");page.refreshGlassesAnswer(failure);check(page.status.value.equals("User action"));
+            page.refreshGlassesAnswer(new JSONObject().put("job_id","third").put("status","completed").put("text","new answer"));
+            check(page.currentAnswer.text.equals("new answer")&&page.answer.value.equals("new answer"));
         }else if(args[0].equals("cancel")){
             ActivityInteractionCheck page=new ActivityInteractionCheck(files);page.busy=true;page.jobId="phone-job";
             CloudClient.Cancellation original=page.jobCancellation=new CloudClient.Cancellation();

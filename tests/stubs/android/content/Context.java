@@ -4,4 +4,5 @@ public class Context {
     private final File files;
     public Context(File files){this.files=files;}
     public File getFilesDir(){return files;}
+    public String getPackageName(){return "dev.xr.rayneo.probe";}
 }

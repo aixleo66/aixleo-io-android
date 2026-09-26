@@ -134,7 +134,7 @@ public final class PhoneNotifications extends NotificationListenerService {
                 if((known.has(channel.getId())||known.length()<100)&&!label.equals(known.optString(channel.getId()))){known.put(channel.getId(),label);p.edit().putString("channels_"+pkg,known.toString()).apply();}}
             if(!test&&!allowed(this,pkg,n.getChannelId()))return;
             boolean silent=ranked&&rank.getImportance()<NotificationManager.IMPORTANCE_DEFAULT;
-            if(!NotificationPolicy.eligible(true,true,sbn.isOngoing(),(n.flags&Notification.FLAG_GROUP_SUMMARY)!=0,silent,p.getBoolean("include_silent",false)))return;
+            if(!NotificationPolicy.eligible(true,true,sbn.isOngoing(),(n.flags&Notification.FLAG_GROUP_SUMMARY)!=0,silent,p.getBoolean("include_silent",false),NotificationPolicy.backgroundService(n.flags,n.category)))return;
             String name;
             try{name=getPackageManager().getApplicationLabel(getPackageManager().getApplicationInfo(pkg,0)).toString();}catch(Exception e){name=pkg;}
             String title=NotificationPolicy.text(n.extras.getCharSequence(Notification.EXTRA_TITLE),80);

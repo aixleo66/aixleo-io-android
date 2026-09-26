@@ -1,5 +1,6 @@
 package dev.xr.rayneo.probe;
 
+import java.io.Closeable;
 import java.net.URI;
 import java.util.Collections;
 import java.util.concurrent.*;
@@ -21,16 +22,15 @@ final class KnowledgeClient {
         String url=c.optString("knowledge_url"),token=c.optString("knowledge_token");
         if(!url.isEmpty())endpoint(url);
         if(token.length()>512||(!token.isEmpty()&&!token.matches("[!-~]+")))throw new CloudClient.Failure("知识库 Token 格式无效");
-        if(c.optString("assistant_provider","deepseek").equals("knowledge")&&(url.isEmpty()||token.isEmpty()))
-            throw new CloudClient.Failure("请先填写知识库地址和 Token");
     }
     static JSONObject ask(JSONObject config,String prompt,CloudClient.Cancellation cancel)throws Exception{
         cancel.check();validate(config);
         if(prompt.trim().isEmpty()||prompt.length()>2000)throw new CloudClient.Failure("问题须为 1–2000 字");
-        if(config.optString("knowledge_token").isEmpty())throw new CloudClient.Failure("请先填写知识库 Token");
+        if(config.optString("knowledge_url").isEmpty()||config.optString("knowledge_token").isEmpty())
+            throw new CloudClient.Failure("请先填写知识库地址和 Token");
         if(!busy.compareAndSet(false,true))throw new CloudClient.Failure("已有知识库问题正在处理，请稍后再试");
         long start=android.os.SystemClock.elapsedRealtime(),deadline=start+150000;
-        KnowledgeRunState state=new KnowledgeRunState();JSONObject answer=null,usage=null;
+        KnowledgeRunState state=new KnowledgeRunState();JSONObject answer=null,usage=null,retrieval=null;
         boolean submitted=false;int reconnects=0;
         try{
             while(true){
@@ -44,8 +44,12 @@ final class KnowledgeClient {
                     public void onError(Exception e){events.offer("{\"type\":\"transport.failed\"}");}
                 };
                 ws.setConnectionLostTimeout(0);
+                Closeable socketCloser=()->ws.close();
                 try{
-                    if(!ws.connectBlocking(10,TimeUnit.SECONDS))throw new CloudClient.Failure("知识库连接失败，请检查电脑服务与临时链接");
+                    cancel.attachInput(socketCloser);
+                    boolean connected=ws.connectBlocking(10,TimeUnit.SECONDS);
+                    cancel.check();
+                    if(!connected)throw new CloudClient.Failure("知识库连接失败，请检查电脑服务与临时链接");
                     cancel.check();
                     JSONObject hello=new JSONObject().put("type","hello").put("token",config.getString("knowledge_token"));
                     if(state.runId!=null)hello.put("lastRunId",state.runId).put("lastSeq",state.seq);
@@ -75,18 +79,41 @@ final class KnowledgeClient {
                             if(!state.event(packet.getString("runId"),packet.getLong("seq"),kind))continue;
                             if(kind.equals("error"))throw new CloudClient.Failure("电脑端知识库执行失败，请检查服务日志");
                             if(kind.equals("usage"))usage=event; // Structured usage only; never process narrative events as answers.
+                            if(kind.equals("sources"))retrieval=retrievalSummary(event);
                             if(kind.equals("result"))answer=result(event);
                         }else if(type.equals("runEnd")&&synced&&state.completes(packet.optString("runId"),packet.optString("status"))){
                             if(answer==null)throw new CloudClient.Failure("知识库没有完整回答");
                             answer.put("run_id",state.runId).put("last_seq",state.seq).put("elapsed_ms",now-start).put("reconnects",reconnects);
                             if(usage!=null)answer.put("usage",usage);
+                            attachRetrieval(answer,retrieval);
                             return answer;
                         }
                     }
-                }finally{ws.close();}
+                }finally{cancel.detachInput(socketCloser);ws.close();}
             }
         }catch(IllegalArgumentException|JSONException e){throw new CloudClient.Failure("知识库返回的数据不完整，未发送到眼镜");}
         finally{busy.set(false);}
+    }
+    static JSONObject retrievalSummary(JSONObject event)throws Exception{
+        String status=event.optString("status");JSONArray candidates=event.optJSONArray("sources");
+        if(candidates==null||candidates.length()>50||!(status.equals("matched")&&candidates.length()>0||status.equals("no_match")&&candidates.length()==0))
+            return new JSONObject().put("retrieval_status","unknown");
+        return new JSONObject().put("retrieval_status",status).put("candidate_count",candidates.length());
+    }
+    static void attachRetrieval(JSONObject answer,JSONObject retrieval)throws Exception{
+        answer.put("retrieval_status",retrieval==null?"unknown":retrieval.optString("retrieval_status","unknown"));
+        if(retrieval!=null&&retrieval.has("candidate_count"))answer.put("candidate_count",retrieval.getLong("candidate_count"));
+        JSONArray cited=answer.optJSONArray("sources");
+        String grounding=cited==null||cited.length()>50?"unknown":cited.length()==0?"not_cited":"cited";
+        answer.put("grounding_status",grounding);
+        if(!grounding.equals("unknown"))answer.put("cited_source_count",cited.length());
+        String status=answer.optString("retrieval_status");
+        if(status.equals("no_match")||status.equals("unknown")){
+            // Preserve the model's original answer; qualify uncertain retrieval on both phone and lens.
+            String notice=status.equals("no_match")?"知识库未命中，本轮回答没有知识库依据。\n"
+                :"知识库依据状态未确认，本轮回答不作为知识库命中结果。\n";
+            answer.put("lens_text",lensText(notice+answer.getString("text"),notice+answer.getString("short_answer")));
+        }
     }
     private static JSONObject result(JSONObject event)throws Exception{
         String full=checked(event.getString("displayAnswer"),16000),shortAnswer=checked(event.getString("spokenAnswer"),2000);

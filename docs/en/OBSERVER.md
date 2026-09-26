@@ -17,3 +17,5 @@ The default lifetime is 30 minutes. Stop it earlier with Ctrl+C. Stopping the ob
 Only bounded current state and stages are shown. This is not a complete history, and it does not automatically produce a report for an entire testing session. Content is not redacted by default. Check questions, answers, notifications, addresses, and other identifiers before showing or sharing it. Do not directly commit screenshots or exported local results to a public repository.
 
 Success means the browser is online, the session/process is live, and the relevant stages update after an explicit action. Lens display still requires wearer confirmation. Record protocol results and wearer observations separately in [test records](TESTING.md). If the page is offline, first check USB authorization, ADB configuration, the app process, and the observer lifetime; do not repeatedly unbind the glasses merely to restore this page.
+
+The helper defaults to this version’s `dev.xr.rayneo.sdklab`. Add `--profile daily` only for the old package; a mismatched profile appears offline or unreadable.

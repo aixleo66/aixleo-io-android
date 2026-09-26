@@ -15,6 +15,7 @@ import org.java_websocket.handshake.ServerHandshake;
 final class StreamingAsr implements AutoCloseable {
     interface Listener {
         void event(String name, Object value);
+        default void timing(String name,String detail,long elapsedRealtime) {}
         void text(String value, boolean isFinal);
         void endpoint();
         void completed(JSONObject asr);
@@ -22,24 +23,59 @@ final class StreamingAsr implements AutoCloseable {
     }
     private final JSONObject config;
     private final Listener listener;
+    private final int requestedSilenceDurationMs;
+    private final int captureWindowMs;
+    private final int continuationGraceMs;
+    private volatile boolean captureStopConfirmed;
     private final ArrayBlockingQueue<byte[]> packets = new ArrayBlockingQueue<>(128);
     private final ArrayBlockingQueue<String> events = new ArrayBlockingQueue<>(64);
-    private volatile boolean cancelled, ended;
+    private volatile boolean cancelled, ended, inputStopped;
+    private volatile int acceptedPackets, latePackets;
     private volatile WebSocketClient socket;
     private volatile String transportFailure;
     private final Thread worker;
     private volatile boolean uploaded;
     boolean uploadStarted() { return uploaded; }
     StreamingAsr(JSONObject config, Listener listener) {
+        this(config,listener,700);
+    }
+    StreamingAsr(JSONObject config, Listener listener, int silenceDurationMs) {
+        this(config,listener,silenceDurationMs,0);
+    }
+    StreamingAsr(JSONObject config, Listener listener, int silenceDurationMs, int captureWindowMs) {
+        this(config,listener,silenceDurationMs,captureWindowMs,0);
+    }
+    StreamingAsr(JSONObject config, Listener listener, int silenceDurationMs, int captureWindowMs, int continuationGraceMs) {
+        if(silenceDurationMs!=700&&silenceDurationMs!=1500)throw new IllegalArgumentException("Unsupported ASR silence duration");
+        if(captureWindowMs!=0&&captureWindowMs!=8000)throw new IllegalArgumentException("Unsupported ASR capture window");
+        if((continuationGraceMs!=0&&continuationGraceMs!=2000)||(continuationGraceMs!=0&&captureWindowMs!=0))
+            throw new IllegalArgumentException("Unsupported ASR continuation policy");
+        this.continuationGraceMs=continuationGraceMs;
+        this.captureWindowMs=captureWindowMs;
+        requestedSilenceDurationMs=silenceDurationMs;
         this.config = config; this.listener = listener;
         worker = new Thread(this::run, "glasses-stream-asr"); worker.setDaemon(true);
     }
+    static JSONObject sessionSettings(int silenceDurationMs)throws Exception{
+        if(silenceDurationMs!=700&&silenceDurationMs!=1500)throw new IllegalArgumentException("Unsupported ASR silence duration");
+        return new JSONObject().put("input_audio_format","pcm").put("sample_rate",16000)
+            .put("input_audio_transcription",new JSONObject().put("language","zh"))
+            .put("turn_detection",new JSONObject().put("type","server_vad").put("threshold",0.0)
+                .put("silence_duration_ms",silenceDurationMs));
+    }
     void start() { worker.start(); }
+    void acknowledgeCaptureStop(boolean success){
+        if(continuationGraceMs==0||cancelled)return;
+        if(success)captureStopConfirmed=true;
+        else transportFailure="ASR capture stop send failed";
+    }
     boolean offer(byte[] opus) {
-        if (cancelled || ended) return true;
-        byte[] copy = opus.clone();
-        if (packets.offer(copy)) return true;
-        Arrays.fill(copy, (byte)0); transportFailure = "实时音频队列已满"; return false;
+        synchronized(packets){
+            if (cancelled || ended || inputStopped) { if(inputStopped)latePackets++;return true; }
+            byte[] copy = opus.clone();
+            if (packets.offer(copy)) {acceptedPackets++;return true;}
+            Arrays.fill(copy, (byte)0); transportFailure = "实时音频队列已满"; return false;
+        }
     }
     private void send(String type, String key, Object value) throws Exception {
         JSONObject event = new JSONObject().put("event_id", UUID.randomUUID().toString()).put("type", type);
@@ -50,7 +86,13 @@ final class StreamingAsr implements AutoCloseable {
     private void run() {
         MediaCodec decoder = null; PcmDownsample resampler = new PcmDownsample();
         long started = SystemClock.elapsedRealtime(), sentSamples = 0, pcmSamples = 0, endpointAt = 0;
-        int count = 0, partials = 0; String finalText = null;
+        int count = 0, partials = 0; String finalText = null; String endpointReason="unknown";
+        AsrSegments segments=captureWindowMs==0&&continuationGraceMs==0?null:new AsrSegments();
+        Set<String> speaking=new HashSet<>();long quietSince=0;
+        JSONArray graceEvents=new JSONArray();
+        JSONObject echoed=new JSONObject();
+        boolean sentEos=false,gotEos=false,finishSent=false;
+        long finishAt=0,sessionFinishedAt=0;
         try {
             URI uri = endpoint(config);
             Map<String,String> headers = new HashMap<>();
@@ -71,35 +113,67 @@ final class StreamingAsr implements AutoCloseable {
             if (!socket.connectBlocking(10, TimeUnit.SECONDS))
                 throw new CloudClient.Failure(transportFailure == null ? "识别连接未能建立" : transportFailure);
             if (cancelled) throw new InterruptedException();
-            send("session.update", "session", new JSONObject().put("input_audio_format", "pcm").put("sample_rate", 16000)
-                .put("input_audio_transcription", new JSONObject().put("language", "zh"))
-                .put("turn_detection", new JSONObject().put("type", "server_vad").put("threshold", 0.0).put("silence_duration_ms", 700)));
+            send("session.update", "session", sessionSettings(requestedSilenceDurationMs));
             boolean ready = false, speechStarted = false;
             long readyAt = 0;
             MediaCodec.BufferInfo info = new MediaCodec.BufferInfo();
             while (!cancelled) {
                 if (transportFailure != null) throw new CloudClient.Failure(transportFailure);
                 long now = SystemClock.elapsedRealtime();
-                if (ready && !speechStarted && now - readyAt > 8000) throw new CloudClient.Failure("未检测到说话，已停止本轮收音");
+                if (ready && !speechStarted && now - readyAt > 8000) { listener.timing("asr_no_input","",now); throw new CloudClient.Failure("未检测到说话，已停止本轮收音"); }
                 if (now - started > 30000 || (!ended && now - started > 20000)) throw new CloudClient.Failure("本轮识别超时，已停止收音");
                 String incoming;
                 while ((incoming = events.poll()) != null) {
                     JSONObject event = new JSONObject(incoming); String type = event.optString("type");
-                    if (type.equals("session.updated")) { ready = true; readyAt = now; listener.event("stream_ready", now - started); }
-                    else if (type.equals("input_audio_buffer.speech_started")) { speechStarted = true; listener.event("stream_speech_started", true); }
+                    boolean segmentPartialChanged=segments==null;
+                    if(segments!=null&&!type.endsWith("transcription.failed"))
+                        segmentPartialChanged=segments.accept(event,now-started,count,pcmSamples,packets.size());
+                    if(continuationGraceMs!=0&&!inputStopped){
+                        String item=event.optString("item_id");String transition=null;
+                        if(type.equals("input_audio_buffer.speech_started")){
+                            speaking.add(item);if(quietSince!=0)transition="cancelled_by_speech";quietSince=0;
+                        }else if(type.equals("input_audio_buffer.speech_stopped")&&speaking.remove(item)&&speaking.isEmpty()){
+                            quietSince=now;transition="started_after_sentence";
+                        }
+                        if(transition!=null&&graceEvents.length()<32)graceEvents.put(new JSONObject()
+                            .put("transition",transition).put("item_id",item).put("elapsed_ms",now-started));
+                    }
+                    if (type.equals("session.updated")) {
+                        if(!ready)readyAt=now;
+                        ready = true;echoed=AsrSegments.echoedSettings(event);
+                        listener.event("stream_session_settings",echoed);listener.timing("asr_ready","",now); listener.event("stream_ready", now - started);
+                    }
+                    else if (type.equals("input_audio_buffer.speech_started")) { speechStarted = true; listener.timing("asr_speech_started","",now); listener.event("stream_speech_started", true); }
                     else if (type.equals("conversation.item.input_audio_transcription.text")) {
-                        if (finalText == null) { partials++; listener.text(event.optString("text") + event.optString("stash"), false); }
+                        if (finalText == null&&segmentPartialChanged) { partials++; listener.text(event.optString("text") + event.optString("stash"), false); }
                     } else if (type.equals("input_audio_buffer.speech_stopped")) {
-                        if (!ended) { ended = true; endpointAt = now; listener.endpoint(); send("session.finish", null, null); }
+                        if (segments==null&&!ended) { ended = true; endpointAt = now; endpointReason="vad_stopped"; listener.timing("asr_endpoint",endpointReason,now); listener.endpoint(); send("session.finish", null, null); }
                     } else if (type.equals("conversation.item.input_audio_transcription.completed")) {
-                        if (finalText == null) {
-                            finalText = event.optString("transcript").trim(); listener.text(finalText, true);
-                            if (!ended) { ended = true; endpointAt = now; listener.endpoint(); send("session.finish", null, null); }
+                        if (segments==null&&finalText == null) {
+                            finalText = event.optString("transcript").trim(); listener.timing("asr_final_text","",now); listener.text(finalText, true);
+                            if (!ended) { ended = true; endpointAt = now; endpointReason="final_text_fallback"; listener.timing("asr_endpoint",endpointReason,now); listener.endpoint(); send("session.finish", null, null); }
                         }
                     } else if (type.equals("session.finished")) {
+                        if(segments!=null){
+                            if(!finishSent)throw new CloudClient.Failure("ASR session ended before bounded capture finished");
+                            finalText=segments.finalText();listener.timing("asr_final_text","",now);listener.text(finalText,true);
+                        }
+                        sessionFinishedAt=now;
                         if (finalText == null || finalText.isEmpty()) throw new CloudClient.Failure("未识别到有效语音，请重新唤醒");
+                        listener.timing("asr_completed","",now);
                         listener.completed(new JSONObject().put("provider", "dashscope").put("model", config.optString("dashscope_stream_model", "qwen3-asr-flash-realtime"))
                             .put("text", finalText).put("elapsed_ms", now - started).put("endpoint_ms", endpointAt - started)
+                            .put("endpoint_reason",endpointReason).put("requested_silence_duration_ms",requestedSilenceDurationMs)
+                            .put("service_settings_echo",echoed).put("capture_window_ms",captureWindowMs)
+                            .put("continuation_grace_ms",continuationGraceMs).put("continuation_events",graceEvents)
+                            .put("capture_stop_send_confirmed_before_finish",continuationGraceMs==0?JSONObject.NULL:captureStopConfirmed)
+                            .put("capture_window_origin",captureWindowMs==0?"not_applicable":"service_ready")
+                            .put("accepted_opus_packets",acceptedPackets).put("late_packets_after_cutoff",latePackets)
+                            .put("queued_packets_at_finish",packets.size()).put("decoder_eos",gotEos)
+                            .put("finish_sent_ms",finishAt==0?JSONObject.NULL:finishAt-started)
+                            .put("session_finished_ms",sessionFinishedAt-started)
+                            .put("segments",segments==null?JSONObject.NULL:segments.snapshot())
+                            .put("segment_events",segments==null?JSONObject.NULL:segments.events())
                             .put("partial_events", partials).put("opus_packets", count).put("pcm_samples", pcmSamples)
                             .put("sample_rate", 16000).put("audio_sent_ms", pcmSamples * 1000 / 16000));
                         return;
@@ -108,7 +182,22 @@ final class StreamingAsr implements AutoCloseable {
                         throw new CloudClient.Failure("实时识别服务拒绝请求：" + (code.matches("[A-Za-z0-9_.-]{1,80}") ? code : "unknown"));
                     } else if (type.equals("transport.closed")) throw new CloudClient.Failure("识别连接提前关闭");
                 }
+                boolean graceExpired=continuationGraceMs!=0&&quietSince!=0&&speaking.isEmpty()&&now-quietSince>=continuationGraceMs;
+                if(segments!=null&&ready&&!inputStopped&&((captureWindowMs!=0&&now-readyAt>=captureWindowMs)||graceExpired)){
+                    synchronized(packets){inputStopped=true;}
+                    endpointAt=now;endpointReason=graceExpired?"continuation_grace_expired":"bounded_capture_window";
+                    if(graceExpired&&graceEvents.length()<32)graceEvents.put(new JSONObject().put("transition","expired").put("elapsed_ms",now-started));
+                    listener.timing("asr_endpoint",endpointReason,now);listener.endpoint();
+                }
+                if(segments!=null&&inputStopped&&!finishSent&&now-endpointAt>2500)
+                    throw new CloudClient.Failure("ASR audio drain or capture stop confirmation timed out");
                 if (ended || !ready) { Thread.sleep(10); continue; }
+                if(segments!=null&&inputStopped&&decoder==null&&packets.isEmpty())gotEos=true;
+                if(segments!=null&&gotEos&&!finishSent){
+                    if(continuationGraceMs!=0&&!captureStopConfirmed){Thread.sleep(10);continue;}
+                    send("session.finish",null,null);finishSent=true;finishAt=now;ended=true;
+                    listener.timing("asr_finish_sent","",now);continue;
+                }
                 if (decoder == null) {
                     decoder = MediaCodec.createDecoderByType("audio/opus"); decoder.configure(OpusAudio.format(), null, null, 0); decoder.start();
                 }
@@ -123,6 +212,10 @@ final class StreamingAsr implements AutoCloseable {
                             if (sentSamples > 48000 * 20) throw new CloudClient.Failure("本轮音频达到20秒上限");
                         } finally { Arrays.fill(packet, (byte)0); }
                     }
+                }
+                if(segments!=null&&inputStopped&&packets.isEmpty()&&!sentEos){
+                    int input=decoder.dequeueInputBuffer(1000);
+                    if(input>=0){decoder.queueInputBuffer(input,0,0,sentSamples*1000000/48000,MediaCodec.BUFFER_FLAG_END_OF_STREAM);sentEos=true;}
                 }
                 int out = decoder.dequeueOutputBuffer(info, 1000);
                 if (out == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) {
@@ -144,6 +237,7 @@ final class StreamingAsr implements AutoCloseable {
                             send("input_audio_buffer.append", "audio", android.util.Base64.encodeToString(down, android.util.Base64.NO_WRAP));
                             pcmSamples += down.length / 2;
                         }
+                        if((info.flags&MediaCodec.BUFFER_FLAG_END_OF_STREAM)!=0)gotEos=true;
                     } finally {
                         if (pcm != null) Arrays.fill(pcm, (byte)0); if (down != null) Arrays.fill(down, (byte)0);
                         decoder.releaseOutputBuffer(out, false);

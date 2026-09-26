@@ -1,0 +1,58 @@
+package dev.xr.rayneo.probe;
+import java.io.*;
+import java.util.*;
+import android.os.SystemClock;
+import org.json.*;
+
+/** Production event admission method; preparation is a spy, not a Bluetooth emulator. */
+final class DeviceRecordingDispatchCheck {
+    final File files;
+    final JSONObject result=new JSONObject();
+    boolean recordingPreparing,authenticated=true,persistentSession=true,voiceRecording,voicePreparing,standbyEnabled,standbyReady;
+    String pendingDeviceRecordingId,activeCommand,activeCommandKind,prepared;
+    long nativeDisplayUntil;
+    boolean readingActive;
+    boolean labNativeReadingActive(){return readingActive;}
+    GlassesRecorder recorder;
+    LabAnswerTrial answerTrial;
+    LabAsrTrial asrTrial;
+    LabDisplayTrial displayTrial;
+    int completedSessions;
+    int preparationCount,failures;
+    boolean throwPreparation;
+    final List<String> observations=new ArrayList<>();
+    DeviceRecordingDispatchCheck(File files){this.files=files;}
+    File getFilesDir(){return files;}
+    void stage(String name,Object value){observations.add(name+":"+value);}
+    void prepareRecordingTask(String id)throws Exception{if(throwPreparation)throw new IOException();prepared=id;preparationCount++;}
+    void failRecordingPreparation(){failures++;}
+    void complete(String status,String reason){completedSessions++;}
+    // PRODUCTION_METHODS
+    static void check(boolean ok){if(!ok)throw new AssertionError();}
+    void start(String id)throws Exception{receiveDeviceRecordingStart(new JSONObject().put("uuid",id));}
+    public static void main(String[] args)throws Exception{
+        File files=new File(args[1]);files.mkdirs();
+        DeviceRecordingDispatchCheck h=new DeviceRecordingDispatchCheck(files);
+        h.start("../escape");check(h.preparationCount==0);
+        h.authenticated=false;h.start("one");check(h.preparationCount==0);h.authenticated=true;
+        h.persistentSession=false;h.start("one");check(h.preparationCount==0);h.persistentSession=true;
+        h.voiceRecording=true;h.start("one");check(h.preparationCount==0);h.voiceRecording=false;
+        h.voicePreparing=true;h.start("one");check(h.preparationCount==0);h.voicePreparing=false;
+        h.nativeDisplayUntil=SystemClock.elapsedRealtime()+1000;h.start("one");check(h.preparationCount==0);h.nativeDisplayUntil=0;
+        h.readingActive=true;h.start("one");check(h.preparationCount==0);h.readingActive=false;
+        h.standbyEnabled=true;h.standbyReady=false;h.start("one");check(h.preparationCount==0);h.standbyReady=true;
+        h.result.put("last_command",new JSONObject().put("status","pending"));h.start("one");check(h.preparationCount==0);
+        h.result.put("last_command",new JSONObject().put("status","completed"));
+        h.asrTrial=new LabAsrTrial("asr","session",0);h.start("one");check(h.preparationCount==0);h.asrTrial.interrupted(1);
+        h.recordingPreparing=true;h.pendingDeviceRecordingId="one";h.start("one");h.start("two");check(h.preparationCount==0);h.recordingPreparing=false;
+        File existing=new File(files,"recordings/existing");check(existing.mkdirs());
+        h.start("existing");check(h.preparationCount==0&&existing.isDirectory());
+        h.start("one");check(h.preparationCount==1&&h.prepared.equals("one"));
+        check(h.result.getJSONObject("last_command").optString("source").equals("glasses_menu"));
+        check(h.result.getJSONObject("last_command").optString("status").equals("pending"));
+        h.start("one");check(h.preparationCount==1); // Pending internal start is not replaced.
+        h.result.getJSONObject("last_command").put("status","completed");h.throwPreparation=true;
+        h.start("two");check(h.failures==1);
+        System.out.println("Device recording dispatch busy gates, pending requests and replay checks passed");
+    }
+}

@@ -1,0 +1,19 @@
+<resources>
+  <style name="CompanionDark" parent="android:style/Theme.Material.NoActionBar">
+    <item name="android:colorAccent">#79A7FF</item>
+    <item name="android:colorBackground">#101722</item>
+    <item name="android:windowBackground">#101722</item>
+    <item name="android:colorForeground">#EDF2FC</item>
+    <item name="android:textColorPrimary">#EDF2FC</item>
+    <item name="android:textColorSecondary">#A6B4C9</item>
+    <item name="android:colorControlNormal">#A6B4C9</item>
+    <item name="android:colorControlActivated">#79A7FF</item>
+    <item name="android:colorButtonNormal">#243859</item>
+    <item name="android:windowLightStatusBar">false</item>
+    <item name="android:windowLightNavigationBar">false</item>
+    <item name="android:statusBarColor">#101722</item>
+    <item name="android:navigationBarColor">#192332</item>
+    <item name="android:windowSoftInputMode">adjustResize</item>
+    <item name="android:forceDarkAllowed">false</item>
+  </style>
+</resources>

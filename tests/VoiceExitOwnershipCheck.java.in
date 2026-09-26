@@ -1,0 +1,280 @@
+package dev.xr.rayneo.probe;
+import java.util.*;
+import org.json.*;
+import android.os.SystemClock;
+
+/**
+ * G0 offline counterexample fixture (A09 / S02: exit and round identity).
+ *
+ * The production dispatcher handles an identity-less device type8 (assistant exit)
+ * with the *current local round*. This fixture replays the real production
+ * `voiceEvent` dispatch for two opposite intents that reach it with the same wire
+ * event:
+ *
+ *   A) the previous round already sent its auto-exit and was acknowledged
+ *      (`auto_exit_send_completed`, no device echo seen), a new wake was accepted
+ *      and the new round started, then the late echo of the old round arrives
+ *      -> must NOT cancel the new round;
+ *   B) the previous round was closed by a real device exit, a new wake was
+ *      accepted and the new round started, then the user really exits this round
+ *      -> MUST cancel the current round.
+ *
+ * Both sequences are built only from production methods (wake, delivery, exit
+ * request, send acknowledgement, dispatch). `startVoiceCapture` is a deterministic
+ * stub because capture start is not the subject and it needs an Android Context.
+ * The fixture never invents a round id, time window, or delay: it records the state
+ * that the production type8 branch can actually observe and compares the two runs.
+ */
+public final class VoiceExitOwnershipCheck {
+    final int link;
+    final String labNativeUser="own-user",labNativeDialog="own-dialog";
+    boolean finished,finishing,voiceArmed,voiceRecording,voicePreparing;
+    boolean cloudVoice,nativeReply,standbyEnabled,standbyReady,labNativeStandby,persistentSession;
+    int standbyRounds,voicePackets,voiceBytes,voiceAfterStop;
+    final List<byte[]> voiceAudio=new ArrayList<byte[]>();
+    Journal voiceRounds;Canceller cloudCancellation;
+    StreamingAsr streamingAsr,labNativeStopStream;
+    long voiceStopAt,nativeDisplayUntil,nativeFollowupUntil;
+    boolean awaitingDisplayComplete;
+    Runnable displayCompleteFallback;
+    int labNativeDisplayWaitSeconds=60;
+    // Platform edges the harness supplies so dropWake can be spliced verbatim.
+    GlassesRecorderStub recorder=null;
+    boolean recordingPreparing=false;
+    boolean recordingTransportOwned=false;
+    long nextStandbyAttempt=0;
+    static final class GlassesRecorderStub{boolean busy(){return false;}}
+    void restoreStandbyIfNeeded()throws Exception{}
+    int labNativeAnswerChunks=1;
+    String voiceCommand,activeCommand,activeCommandKind,standbyControl,notificationUid;
+    NativeAnswerRound labNativeRound;
+    int labNativeAutoExitSeconds=15;
+    int labNativeFollowupSeconds=10;
+    boolean labNativeFollowupEnabled=true;
+    int labNativeContinuationLinkType;
+    boolean labNativeContinuationCandidate;
+    String labNativeContinuationUser="",labNativeContinuationDialog="";
+    Runnable labNativeAutoExit,labNativeExitConfirmation;
+    final AssistantConversation labAssistantConversation=new AssistantConversation();
+    boolean labAssistantConversationActive=true;
+    final JSONObject result=new JSONObject();
+    final Map<String,Runnable> sendContinuations=new HashMap<String,Runnable>();
+    final List<JSONObject> sends=new ArrayList<JSONObject>();
+    final Handler handler=new Handler();
+    final List<String> stages=new ArrayList<String>();
+    int roundEnds,failures,wakeCaptures;
+
+    VoiceExitOwnershipCheck(int link){this.link=link;}
+
+    String getPackageName(){return "dev.xr.rayneo.sdklab";}
+
+    // Platform / collaborator edges. These are deterministic substitutes, not the subject under test.
+    boolean handleAsrTrialVoice(BusinessEnvelope wire){return false;}
+    boolean handleAnswerTrialVoice(BusinessEnvelope wire){return false;}
+    void stage(String name,Object value){stages.add(name);}
+    void traceReading(String command,String event,JSONObject details){}
+    void voiceTiming(String id,String name,long at){}
+    void publishVoiceTiming(){}
+    void endVoiceRound(String command,String outcome){if("failed".equals(outcome))failures++;else roundEnds++;}
+    void writeCloudResult(JSONObject cloud){}
+    void publishStandby(String phase){}
+    void complete(String status,String error){throw new AssertionError(status+":"+error);}
+    String rootError(Exception e){return e.getClass().getSimpleName();}
+    void sendBusiness(String businessName,int type,JSONObject value,String id){sends.add(new JSONObject().put("type",type).put("value",value).put("id",id));}
+    JSONObject nativeAnswerPayload(String text,String query,String command){throw new AssertionError("legacy path used");}
+    void beginVoiceRound(){if(voiceRounds==null)voiceRounds=new Journal();}
+    // Capture start is out of scope here; production would start streaming ASR after the wake.
+    void startVoiceCapture()throws Exception{voiceRecording=true;wakeCaptures++;result.put("voice_test",new JSONObject().put("phase","recording"));}
+    void finishVoice(String reason){voiceArmed=false;voiceRecording=false;}
+
+    static void check(boolean value,String label){if(!value)throw new AssertionError(label);}
+    static BusinessEnvelope wire(int type,String json)throws Exception{return BusinessEnvelope.decode(BusinessEnvelope.encode(type,json));}
+    static JSONObject pipeline(String text)throws Exception{return new JSONObject().put("text",text)
+        .put("answer",new JSONObject().put("text",text)).put("asr",new JSONObject().put("text","question"));}
+
+    void startIdle(String command)throws Exception{
+        standbyEnabled=true;labNativeStandby=true;standbyReady=true;persistentSession=true;
+        cloudVoice=true;nativeReply=true;voiceArmed=true;voiceRecording=false;voicePreparing=false;
+        voiceCommand=command;activeCommand=command;activeCommandKind="voice-native";
+        result.put("session_id","session")
+            .put("last_command",new JSONObject().put("id",command).put("kind","voice-native").put("status","completed"))
+            .put("voice_test",new JSONObject()).put("glasses_cloud",new JSONObject());
+    }
+    void wake()throws Exception{voiceEvent(wire(1,"{\"linkType\":"+link+"}"));}
+    void deliver(String text)throws Exception{
+        sendNativeAnswer(pipeline(text),voiceCommand);
+        for(int i=0;i<sends.size();i++)handleLabNativeSend(sends.get(i).getString("id"),null);
+        // The glasses report the scroll finished, which is what starts the reading windows. Every
+        // path below must begin from the same post-display state or A/B comparison is meaningless.
+        startReadingWindows();
+    }
+    /** Auto exit of the current delivered round: request, then send acknowledgement without a device echo. */
+    JSONObject autoExit()throws Exception{
+        handler.runFirst();
+        JSONObject command=sends.get(sends.size()-1);
+        check(command.optInt("type")==7&&command.getString("id").startsWith("lab-native-exit-"),"auto exit sends type7");
+        handleLabNativeSend(command.getString("id"),null);
+        JSONObject reading=result.optJSONObject("lab_native_reading");
+        return new JSONObject().put("intent","auto_exit_send_completed")
+            .put("exit_send_completed",result.optBoolean("lab_native_exit_send_completed"))
+            .put("echo_confirmation_pending",labNativeExitConfirmation!=null)
+            .put("round_terminal",labNativeRound!=null&&labNativeRound.terminal())
+            .put("reading_state",reading==null?"":reading.optString("state"));
+    }
+    /** Real device exit of the current delivered reading round. */
+    JSONObject deviceExitEcho(String intent)throws Exception{
+        voiceEvent(wire(8,"{}"));
+        JSONObject reading=result.optJSONObject("lab_native_reading");
+        return new JSONObject().put("intent",intent)
+            .put("exit_send_completed",result.optBoolean("lab_native_exit_send_completed"))
+            .put("echo_confirmation_pending",labNativeExitConfirmation!=null)
+            .put("round_terminal",labNativeRound!=null&&labNativeRound.terminal())
+            .put("reading_state",reading==null?"":reading.optString("state"));
+    }
+
+    /** Values retained or consulted by the current production type8 branches at dispatch time. */
+    JSONObject dispatchState()throws Exception{
+        JSONObject reading=result.optJSONObject("lab_native_reading"),last=result.optJSONObject("last_command");
+        return new JSONObject()
+            .put("lab_native_mode",labNativeMode())
+            .put("round_present",labNativeRound!=null)
+            .put("round_terminal",labNativeRound!=null&&labNativeRound.terminal())
+            .put("round_is_active_command",labNativeRound!=null&&labNativeRound.command.equals(activeCommand))
+            .put("round_is_voice_command",labNativeRound!=null&&voiceCommand!=null&&labNativeRound.command.equals(voiceCommand))
+            .put("reading_present",reading!=null)
+            .put("reading_state",reading==null?"":reading.optString("state"))
+            .put("reading_owned",labNativeReadingOwned())
+            .put("reading_active",labNativeReadingActive())
+            .put("old_exit_marker_retained",result.has("lab_native_exit_send_completed"))
+            .put("echo_confirmation_pending",labNativeExitConfirmation!=null)
+            .put("voice_armed",voiceArmed)
+            .put("voice_recording",voiceRecording)
+            .put("voice_preparing",voicePreparing)
+            .put("cloud_voice",cloudVoice)
+            .put("native_reply",nativeReply)
+            .put("standby_enabled",standbyEnabled)
+            .put("standby_ready",standbyReady)
+            .put("lab_native_standby",labNativeStandby)
+            .put("standby_rounds",standbyRounds)
+            .put("active_kind",activeCommandKind)
+            .put("voice_command_equals_active",voiceCommand!=null&&voiceCommand.equals(activeCommand))
+            .put("last_command_status",last==null?"":last.optString("status"))
+            .put("native_display_until_set",nativeDisplayUntil!=0)
+            .put("owns_voice_exit",VoiceRecordingAction.ownsVoiceExit(voiceCommand,activeCommand,activeCommandKind,
+                last!=null&&"pending".equals(last.optString("status"))))
+            .put("pending_timers",handler.tasks.size());
+    }
+
+    JSONObject dispatch(String intent,String desired,JSONObject marker)throws Exception{
+        JSONObject stateBefore=dispatchState();
+        String roundBefore=labNativeRound==null?null:labNativeRound.command;
+        stages.clear();
+        voiceEvent(wire(8,"{}"));
+        String branch=stages.contains("native_round_cancelled_by_glasses")?"native_round_cancelled_by_glasses"
+            :stages.contains("lab_native_reading_exit")?"lab_native_reading_exit"
+            :stages.contains("standby_old_page_exited")?"standby_old_page_exited"
+            :stages.contains("lab_native_pre_wake_exit_ignored")?"lab_native_pre_wake_exit_ignored":"other";
+        JSONObject last=result.optJSONObject("last_command");
+        return new JSONObject().put("intent",intent).put("desired",desired).put("marker",marker)
+            .put("state_before",stateBefore).put("branch",branch)
+            .put("new_round_terminal_after",labNativeRound!=null&&labNativeRound.terminal())
+            .put("new_round_kept",labNativeRound!=null&&roundBefore!=null&&roundBefore.equals(labNativeRound.command)
+                &&!labNativeRound.terminal())
+            .put("last_command_status_after",last==null?"":last.optString("status"))
+            .put("standby_ready_after",standbyReady);
+    }
+
+    /** A: old round auto-exit acknowledged, new wake accepted, then the late identity-less type8. */
+    JSONObject runLateOldRoundExit()throws Exception{
+        startIdle("round-1");
+        wake();
+        deliver("第一轮回答");
+        JSONObject marker=autoExit();
+        wake();
+        return dispatch("late_old_round_exit","keep_new_round",marker);
+    }
+    /** B: old round really exited by the device, new wake accepted, then the user really exits this round. */
+    JSONObject runCurrentRoundUserExit()throws Exception{
+        startIdle("round-1");
+        wake();
+        deliver("第一轮回答");
+        JSONObject marker=deviceExitEcho("device_exit_received");
+        wake();
+        return dispatch("current_round_user_exit","cancel_current_round",marker);
+    }
+
+    public static void main(String[] args)throws Exception{
+        for(int link:new int[]{2,3}){
+            VoiceExitOwnershipCheck a=new VoiceExitOwnershipCheck(link);
+            JSONObject resultA=a.runLateOldRoundExit();
+            VoiceExitOwnershipCheck b=new VoiceExitOwnershipCheck(link);
+            JSONObject resultB=b.runCurrentRoundUserExit();
+            String stateA=resultA.getJSONObject("state_before").toString();
+            String stateB=resultB.getJSONObject("state_before").toString();
+            check(stateA.equals(stateB),"A/B dispatch state must be identical (link "+link+")");
+            check(resultA.optString("branch").equals("native_round_cancelled_by_glasses"),"A cancels the new round");
+            check(resultB.optString("branch").equals("native_round_cancelled_by_glasses"),"B cancels the current round");
+            check(!resultA.optBoolean("new_round_kept"),"A wrongly cancels the new round");
+            check(!resultB.optBoolean("new_round_kept"),"B cancels the current round as required");
+            check(!a.labAssistantConversationActive&&a.labAssistantConversation.metadata().optInt("turns")==0,
+                "active-round device exit clears A short-term context");
+            check(!b.labAssistantConversationActive&&b.labAssistantConversation.metadata().optInt("turns")==0,
+                "active-round device exit clears B short-term context");
+            check(!resultA.optString("desired").equals(resultB.optString("desired")),
+                "the two intents require opposite outcomes");
+            check(!a.result.has("lab_native_exit_send_completed")&&a.labNativeExitConfirmation==null,
+                "new wake erased the old exit marker");
+            System.out.println("G0 link="+link+" dispatch_state="+stateA);
+            System.out.println("G0 link="+link+" marker_A="+resultA.getJSONObject("marker"));
+            System.out.println("G0 link="+link+" marker_B="+resultB.getJSONObject("marker"));
+            System.out.println("G0 link="+link+" branch_A="+resultA.optString("branch")+" branch_B="+resultB.optString("branch")
+                +" status_A="+resultA.optString("last_command_status_after")+" status_B="+resultB.optString("last_command_status_after"));
+            System.out.println("G0 link="+link+" states_identical=true distinguishable=false desired_A="
+                +resultA.optString("desired")+" desired_B="+resultB.optString("desired"));
+        }
+        // Boundary: once the new round has delivered its own reading, the type8 exit IS attributable.
+        VoiceExitOwnershipCheck delivered=new VoiceExitOwnershipCheck(2);
+        delivered.startIdle("round-1");
+        delivered.wake();
+        delivered.deliver("第一轮回答");
+        JSONObject before=delivered.dispatchState();
+        delivered.stages.clear();
+        delivered.voiceEvent(wire(8,"{}"));
+        check(delivered.stages.contains("lab_native_reading_exit"),"delivered reading exit uses the reading branch");
+        check(!delivered.stages.contains("native_round_cancelled_by_glasses"),"delivered reading is not treated as a cancel");
+        check("device_exit_received".equals(delivered.result.getJSONObject("lab_native_reading").optString("state")),"reading exit recorded");
+        check(!delivered.labAssistantConversationActive&&delivered.labAssistantConversation.metadata().optInt("turns")==0,
+            "delivered-reading device exit clears short-term context");
+        System.out.println("G0 delivered_round_boundary=true reading_owned="+before.optBoolean("reading_owned")
+            +" round_terminal="+before.optBoolean("round_terminal")+" reading_present="+before.optBoolean("reading_present"));
+        System.out.println("G0 indistinguishable identity-less type8 cannot separate a late old-round exit from a real current-round exit");
+        System.out.println("voice exit ownership checks passed");
+    }
+    // PRODUCTION_METHODS
+}
+final class Handler {
+    final List<Runnable> tasks=new ArrayList<Runnable>();
+    final Map<Runnable,Long> delays=new IdentityHashMap<Runnable,Long>();
+    void post(Runnable r){postDelayed(r,0);}
+    void postDelayed(Runnable r,long ms){tasks.add(r);delays.put(r,ms);}
+    void removeCallbacks(Runnable r){tasks.remove(r);delays.remove(r);}
+    long firstDelay(){return delays.get(tasks.get(0));}
+    void runFirst(){Runnable r=tasks.remove(0);delays.remove(r);r.run();}
+}
+final class StreamingAsr {
+    int stops;
+    void close(){}
+    void acknowledgeCaptureStop(boolean ok){stops++;}
+    boolean offer(byte[] audio){return true;}
+    boolean uploadStarted(){return false;}
+}
+final class Journal {
+    void begin(String session,String command,long at){}
+    void mark(String command,String name,long at){}
+    void finish(String command,String outcome,long at){}
+    void trigger(String command,String trigger){}
+    void capturePolicy(String command,String policy){}
+    void listenerRearmed(long at){}
+}
+final class Canceller {void cancel(){}}
+final class OpusAudio {static void clear(List<byte[]> packets){packets.clear();}}

@@ -15,8 +15,8 @@ final class NotificationSettingsUi {
         s.title(2,"消息提示","选择要接收的应用和通知类别。");
         state=s.card(2,"");
         toggle("将手机通知转发到眼镜","enabled",false);
-        toggle("仅监听检查（暂停眼镜转发）","observe_only",true);
-        s.note(2,"排查手机提醒异常时先保持此项开启：只计数通知事件，不读取正文、不向眼镜发送。手机提示确认正常后再关闭此项测试转发。");
+        toggleAt(6,"仅监听检查（暂停眼镜转发）","observe_only",true);
+        s.note(6,"只计数通知事件，不读取正文、不向眼镜发送。此开关只供排查使用；会保留此前的选择。");
         s.action(2,"开启系统通知访问权限",false,()->{try{a.startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_DETAIL_SETTINGS).putExtra(Settings.EXTRA_NOTIFICATION_LISTENER_COMPONENT_NAME,new ComponentName(a,PhoneNotifications.class).flattenToString()));}catch(Exception e){a.startActivity(new Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS));}});
         if("xiaomi".equalsIgnoreCase(Build.MANUFACTURER)){
             s.action(2,"小米后台自启动设置",false,()->{try{a.startActivity(new Intent().setComponent(new ComponentName("com.miui.securitycenter","com.miui.permcenter.autostart.AutoStartManagementActivity")));}catch(Exception e){a.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,android.net.Uri.parse("package:"+a.getPackageName())));}});
@@ -28,29 +28,30 @@ final class NotificationSettingsUi {
         s.note(2,"类别列表会在所选应用收到新通知后出现，名称由该应用提供。未关闭的类别默认接收。");
         toggle("包含静默通知","include_silent",false);
         s.section(2,"显示内容");toggle("显示消息正文","body",true);
-        s.action(2,"发送一条本机测试通知",false,()->{
+        s.action(6,"发送一条本机测试通知",false,()->{
             if(!a.getSystemService(NotificationManager.class).areNotificationsEnabled()){
                 a.startActivity(new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE,a.getPackageName()));
                 Toast.makeText(a,"请允许本 App 发送通知，再返回测试",Toast.LENGTH_LONG).show();return;
             }
             PhoneNotifications.postTest(a);Toast.makeText(a,PhoneNotifications.state(),Toast.LENGTH_SHORT).show();refresh();});
-        s.note(2,"测试按钮单次验证通知监听与眼镜显示，不需要开启总开关或选择其他应用。");
-        s.action(2,"测试同一通知原位更新",false,()->{PhoneNotifications.postUpdateTest(a);Toast.makeText(a,PhoneNotifications.state(),Toast.LENGTH_LONG).show();});
-        toggle("合并同一条通知的更新（实验）","coalesce_updates",false);
-        s.note(2,"只合并手机系统认定为同一条通知的内容更新；不同会话不强行拼接。先用测试按钮核对眼镜是否支持原位刷新。");
+        s.note(6,"测试按钮单次验证通知监听与眼镜显示，不需要开启总开关或选择其他应用。");
+        s.action(6,"测试同一通知原位更新",false,()->{PhoneNotifications.postUpdateTest(a);Toast.makeText(a,PhoneNotifications.state(),Toast.LENGTH_LONG).show();});
+        toggleAt(6,"合并同一条通知的更新（实验）","coalesce_updates",false);
+        s.note(6,"只合并手机系统认定为同一条通知的内容更新；不同会话不强行拼接。先用测试按钮核对眼镜是否支持原位刷新。");
         s.action(2,"设置正文长度",false,()->{
             int[] values={60,120,200,300};String[] labels={"最多 60 字","最多 120 字","最多 200 字","最多 300 字"};int current=PhoneNotifications.prefs(a).getInt("body_limit",120),selected=1;
             for(int i=0;i<values.length;i++)if(values[i]==current)selected=i;
             new AlertDialog.Builder(a).setTitle("正文长度").setSingleChoiceItems(labels,selected,(d,n)->{PhoneNotifications.prefs(a).edit().putInt("body_limit",values[n]).apply();PhoneNotifications.changed();d.dismiss();refresh();}).setNegativeButton("取消",null).show();
         });
-        s.note(2,"只转发开启后新到达的通知，不同步历史。关闭正文时仍显示应用和标题。录音、语音问答期间暂缓发送，超过 30 秒的消息略过；持续状态栏通知和分组汇总不转发。正文不保存、不上传云端。");
+        s.note(2,"只转发开启后新到达的通知，不同步历史。关闭正文时仍显示应用和标题。录音、语音问答期间暂缓发送，超过 30 秒的消息略过；持续状态栏通知、分组汇总，以及应用后台服务的「正在运行」提示不转发。正文不保存、不上传云端。");
         refresh();
     }
-    private void toggle(String label,String key,boolean fallback){Switch v=new Switch(a);v.setText(label);v.setTextColor(CompanionShell.INK);v.setPadding(0,shell.dp(12),0,shell.dp(12));v.setChecked(PhoneNotifications.prefs(a).getBoolean(key,fallback));v.setOnCheckedChangeListener((b,on)->{PhoneNotifications.prefs(a).edit().putBoolean(key,on).apply();PhoneNotifications.changed();refresh();});shell.pages[2].addView(v);}
+    private void toggle(String label,String key,boolean fallback){toggleAt(2,label,key,fallback);}
+    private void toggleAt(int page,String label,String key,boolean fallback){Switch v=new Switch(a);v.setText(label);v.setTextColor(CompanionShell.INK);v.setPadding(0,shell.dp(12),0,shell.dp(12));v.setChecked(PhoneNotifications.prefs(a).getBoolean(key,fallback));v.setOnCheckedChangeListener((b,on)->{PhoneNotifications.prefs(a).edit().putBoolean(key,on).apply();PhoneNotifications.changed();refresh();});shell.pages[page].addView(v);}
     void refresh(){
         boolean granted=a.getSystemService(NotificationManager.class).isNotificationListenerAccessGranted(new ComponentName(a,PhoneNotifications.class));
         android.content.SharedPreferences p=PhoneNotifications.prefs(a);
-        state.setText(!granted?"尚未开启系统通知访问\n\n点击下方按钮，到系统设置中允许。":PhoneNotifications.connected==null?"系统权限已开启，等待通知服务连接":PhoneNotifications.observeOnly(a)?"仅监听检查 · 不转发\n已收到 "+p.getLong("observed_posts",0)+" 次通知事件":!p.getBoolean("enabled",false)?"通知转发已关闭":"通知转发已开启\n\n"+PhoneNotifications.state());
+        state.setText(!granted?"尚未开启系统通知访问\n\n点击下方按钮，到系统设置中允许。":PhoneNotifications.connected==null?"系统权限已开启，等待通知服务连接":PhoneNotifications.observeOnly(a)?"仅监听检查 · 不转发\n可在设置 → 开发者工具中关闭检查模式":!p.getBoolean("enabled",false)?"通知转发已关闭":"通知转发已开启\n\n"+PhoneNotifications.state());
         if(apps!=null)apps.setText("已选择 "+p.getStringSet("apps",Collections.emptySet()).size()+" 个应用\n\n正文："+(p.getBoolean("body",true)?"最多 "+p.getInt("body_limit",120)+" 字":"不显示"));
     }
     private String label(String pkg){try{return a.getPackageManager().getApplicationLabel(a.getPackageManager().getApplicationInfo(pkg,0)).toString();}catch(Exception e){return pkg;}}

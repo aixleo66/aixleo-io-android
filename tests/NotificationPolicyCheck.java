@@ -19,11 +19,16 @@ public final class NotificationPolicyCheck {
         check(NotificationPolicy.text("你好😀世界",3).equals("你好😀"));
         check(NotificationPolicy.text("甲\u0000乙\n丙\t丁",20).equals("甲乙 丙 丁"));
         check(NotificationPolicy.text(null,120).equals(""));
-        for(int mask=0;mask<64;mask++){
-            boolean on=(mask&1)!=0,app=(mask&2)!=0,ongoing=(mask&4)!=0,group=(mask&8)!=0,silent=(mask&16)!=0,include=(mask&32)!=0;
-            boolean want=on&&app&&!ongoing&&!group&&(!silent||include);
-            check(NotificationPolicy.eligible(on,app,ongoing,group,silent,include)==want);
+        for(int mask=0;mask<128;mask++){
+            boolean on=(mask&1)!=0,app=(mask&2)!=0,ongoing=(mask&4)!=0,group=(mask&8)!=0,silent=(mask&16)!=0,include=(mask&32)!=0,service=(mask&64)!=0;
+            boolean want=on&&app&&!ongoing&&!group&&!service&&(!silent||include);
+            check(NotificationPolicy.eligible(on,app,ongoing,group,silent,include,service)==want);
         }
+        // "短信正在运行" / "米家正在运行": the foreground-service flag or the service category (09-24).
+        check(NotificationPolicy.backgroundService(0x40,null));
+        check(NotificationPolicy.backgroundService(0,"service"));
+        check(!NotificationPolicy.backgroundService(0,"msg"));
+        check(!NotificationPolicy.backgroundService(0,null));
         System.out.println("notification checks passed");
     }
 }

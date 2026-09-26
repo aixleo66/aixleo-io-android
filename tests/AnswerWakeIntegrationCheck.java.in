@@ -1,0 +1,71 @@
+package dev.xr.rayneo.probe;
+import java.util.*;
+import org.json.*;
+import android.os.SystemClock;
+
+/** Actual trial dispatch/finish methods with transport and session-ending spies. */
+final class AnswerWakeIntegrationCheck {
+    LabAsrTrial asrTrial;
+    LabAnswerTrial answerTrial=new LabAnswerTrial("current");
+    String activeCommand="current",notificationUid;
+    JSONObject result=new JSONObject().put("last_command",new JSONObject().put("status","pending"));
+    boolean finished,finishing,voiceRecording,voicePreparing,recordingPreparing,standbyEnabled,standbyReady;
+    Object displayTrial;
+    static final class Recorder {boolean busy(){return false;}}
+    Recorder recorder;
+    long nativeDisplayUntil;
+    long startedAt;
+    boolean readingActive;
+    boolean labNativeReadingActive(){return readingActive;}
+    int sessionEnds;
+    final List<String> sends=new ArrayList<>();
+    boolean connectionReady(){return true;}
+    boolean pendingSetting;
+    boolean headPending(){return false;}
+    boolean wakePending(){return false;}
+    boolean crownPending(){return false;}
+    boolean autoLockPending(){return pendingSetting;}
+    void stage(String name,Object value){}
+    void complete(String status,String reason){sessionEnds++;finished=true;}
+    void sendBusiness(String business,int type,JSONObject payload,String id){sends.add(business+":"+type);}
+    // PRODUCTION_METHODS
+    void wake(int type)throws Exception{
+        check(handleAnswerTrialVoice(BusinessEnvelope.decode(BusinessEnvelope.encode(type,"{}"))));
+    }
+    void ack(int action)throws Exception{advanceAnswerTrial(answerTrial.sent(action,true,SystemClock.now));}
+    static void check(boolean ok){if(!ok)throw new AssertionError();}
+    public static void main(String[] args)throws Exception{
+        SystemClock.now=0;
+        AnswerWakeIntegrationCheck h=new AnswerWakeIntegrationCheck();
+        h.advanceAnswerTrial(h.answerTrial.tick(0));h.publishAnswerTrial();
+        h.wake(8);h.wake(11);check(h.sends.isEmpty());
+        h.wake(1);h.ack(1);h.ack(2);h.ack(3);
+        SystemClock.now=12000;h.advanceAnswerTrial(h.answerTrial.tick(SystemClock.now));h.ack(4);
+        check(h.sends.equals(Arrays.asList("VOICE_ASSISTANT:5","VOICE_ASSISTANT:32","VOICE_ASSISTANT:12","VOICE_ASSISTANT:7")));
+        check(h.answerTrial==null&&h.sessionEnds==0&&!h.finished);
+        check(h.result.getJSONObject("last_command").optString("status").equals("completed"));
+        check(h.forwardPhoneNotification(new JSONObject().put("notificationUID","new"),"notify"));
+        check(h.sends.get(4).equals("NOTIFICATION:2"));
+        h.asrTrial=new LabAsrTrial("asr","session",0);
+        check(!h.forwardPhoneNotification(new JSONObject().put("notificationUID","during-asr"),"blocked"));
+        h.asrTrial.interrupted(1);
+        check(h.forwardPhoneNotification(new JSONObject().put("notificationUID","after-asr"),"resumed"));
+        h.readingActive=true;
+        check(!h.forwardPhoneNotification(new JSONObject().put("notificationUID","during-reading"),"blocked"));
+        h.readingActive=false;
+        h.pendingSetting=true;
+        check(!h.forwardPhoneNotification(new JSONObject().put("notificationUID","during-setting"),"blocked"));
+        check(h.sends.size()==6);
+        check(!h.handleAnswerTrialVoice(BusinessEnvelope.decode(BusinessEnvelope.encode(1,"{}"))));
+        AnswerWakeIntegrationCheck timeout=new AnswerWakeIntegrationCheck();
+        timeout.answerTrial.tick(0);SystemClock.now=45000;
+        timeout.advanceAnswerTrial(timeout.answerTrial.tick(SystemClock.now));
+        check(timeout.sends.isEmpty()&&timeout.answerTrial==null&&timeout.sessionEnds==0);
+        check(timeout.result.getJSONObject("last_command").optString("status").equals("failed"));
+        AnswerWakeIntegrationCheck cancel=new AnswerWakeIntegrationCheck();
+        cancel.answerTrial.tick(45000);cancel.wake(1);cancel.wake(8);cancel.ack(4);
+        check(cancel.sends.equals(Arrays.asList("VOICE_ASSISTANT:5","VOICE_ASSISTANT:7")));
+        check(cancel.answerTrial==null&&cancel.sessionEnds==0);
+        System.out.println("production answer wake/timeout/exit and notification resumption passed");
+    }
+}

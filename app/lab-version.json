@@ -1,0 +1,5 @@
+{
+  "comment": "Single source of the SDK Lab package version. lab.py reads it at build time; bump here only.",
+  "versionCode": 2001,
+  "versionName": "0.2.1"
+}
