@@ -17,6 +17,33 @@ Use the [build guide](BUILDING.md) for a local build. End the official app's con
 
 See [troubleshooting](TROUBLESHOOTING.md), [changelog](CHANGELOG.md), [testing](TESTING.md), [validation records](AUDIT.md), [compatibility](COMPATIBILITY.md), [privacy](PRIVACY.md), [security](SECURITY.md), [third-party notices](THIRD_PARTY_NOTICES.md), and [licensing](LICENSING.md). The vendor binary is not relicensed by this project's PolyForm Noncommercial license; its redistribution authorization has not been verified in the existing provenance record. Historical audit pages describe their own versions and do not establish complete 0.2.1 validation.
 
+## Current usage and development guides
+
+These guides follow the current source. The [version file](../../app/lab-version.json) identifies the build. GitHub shows each file's last modification date; unchanged general guidance may still apply.
+
+| Your task | Start here |
+| --- | --- |
+| Understand features and validation limits | [Feature matrix](FEATURES-0.2.1.md) · [Compatibility](COMPATIBILITY.md) |
+| Build, install and configure | [Building and first use](BUILDING.md) |
+| Diagnose connection or usage problems | [Troubleshooting](TROUBLESHOOTING.md) |
+| Develop with a coding agent or by hand | [AGENTS.md](../../AGENTS.md) · [Development guide](DEVELOPMENT.md) |
+| Explore parameters and officially visible capabilities | [Capability map](CAPABILITY-MAP.md) · [Device reference](DEVICE-CAPABILITIES.md) |
+| Test and observe | [Testing](TESTING.md) · [CLI tools](TOOLS.md) · [Observer](OBSERVER.md) |
+| Connect your own knowledge service | [Gateway contract](GATEWAY.md) |
+| Understand data, licensing and origins | [Privacy](PRIVACY.md) · [Security](SECURITY.md) · [Licensing](LICENSING.md) · [Third-party notices](THIRD_PARTY_NOTICES.md) · [Provenance](PROVENANCE.md) |
+
+## Maintainer workflows
+
+The [release checklist](RELEASE-CHECKLIST.md) and [documentation conventions](DOCUMENTATION.md) describe maintenance procedures. They change when the workflow changes, not automatically with every version.
+
+## Version changes and validation records
+
+- [Changelog](CHANGELOG.md): current changes and retained historical version entries.
+- [Audit index](AUDIT.md): current source validation is separate from older records. The [0.2.1 record](audits/2026-09-26-0.2.1.md) lists this delivery's evidence and uncovered cases.
+- History: [0.14](audits/2026-09-12-0.14.md) · [0.13](audits/2026-09-12-0.13.md). These describe those versions only; they are not current operating instructions or acceptance evidence.
+
+Short same-name pages at the root and directly under `docs/` preserve old links. Full Chinese guides live in `docs/cn/`; English guides live in `docs/en/`.
+
 ## Capability and validation matrix
 
 | Module | Implemented behavior | Evidence and limits |

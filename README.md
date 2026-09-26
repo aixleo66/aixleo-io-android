@@ -2,6 +2,8 @@
 
 [简体中文](docs/cn/README.md) | [English](docs/en/README.md)
 
+**文档导航：** [当前指南、维护流程与历史记录](docs/cn/README.md) · [Documentation directory](docs/en/README.md)。根目录及 `docs/` 中的同名短页仅为旧链接入口，完整正文位于语言目录。
+
 雷鸟 iO 的**非官方 Android 研究 App**。当前源码版本为 0.2.1，仍以 App 和设备实验为中心，没有可独立导入的稳定 Android SDK/AAR；项目与厂商没有隶属或背书关系。本仓库使用非商业研究许可，第三方及厂商组件分别遵循各自权利范围。
 
 本次为 **0.2 系列**源码，实际源码和 App 版本为 **0.2.1**。早期公开版为 0.14 预览，完整变更见[功能与边界](docs/cn/FEATURES-0.2.1.md)和[变更记录](docs/cn/CHANGELOG.md)。

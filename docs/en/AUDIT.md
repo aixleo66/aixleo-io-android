@@ -9,12 +9,17 @@ This page centralizes validation status for specific code versions. Guides descr
 | Target | Record date | Completed | Pending / retained limits | Evidence |
 | --- | --- | --- | --- | --- |
 | 0.2 series source distribution (exact build 0.2.1) | 2026-09-26 | After delivery-tool fixes: 277 offline tests, 276 passed and one optional real-audio test skipped; the earlier source-build baseline passed sdk-lab build, signature and alignment checks (see separate records) | No installation and wearer acceptance of the public copy | [Feature limits](FEATURES-0.2.1.md), [source validation record](audits/2026-09-26-0.2.1.md) |
-| 0.14 interaction-fix source preview | 2026-09-12 | F1–F4 code fixes, F5/D1 documentation and verification tool; 59 automated tests, build, signature/alignment checks | Focused device regression and external independent review of new code; debug capabilities retained | [0.14 fix validation](audits/2026-09-12-0.14.md) |
-| 0.13 source preview | 2026-09-12 | Independent SEC-01/02 source review, 45 automated tests, build, signature/alignment checks, and independent snapshot rebuild | Full device regression; SEC-03 debug capabilities retained | [0.13 audit snapshot](audits/2026-09-12-0.13.md) |
 
 This table distinguishes developer-run automated validation from external independent review; it does not declare every subsequent commit on main accepted. Documentation revisions add no device or cloud test results. See [compatibility records](COMPATIBILITY.md) for device coverage and the [test guide](TESTING.md) for reusable procedures.
 
 ## Historical records
+
+These records apply only to the named older versions. For the current version, use the latest validation section above.
+
+| Target | Date | Completed | Remaining / limits | Evidence |
+| --- | --- | --- | --- | --- |
+| 0.14 interaction-fix source preview | 2026-09-12 | F1–F4 code fixes, F5/D1 documentation and verification tool; 59 automated tests, build, signature/alignment checks | Focused device regression and external independent review of new code; debug capabilities retained | [0.14 fix validation](audits/2026-09-12-0.14.md) |
+| 0.13 source preview | 2026-09-12 | Independent SEC-01/02 source review, 45 automated tests, build, signature/alignment checks, and independent snapshot rebuild | Full device regression; SEC-03 debug capabilities retained | [0.13 audit snapshot](audits/2026-09-12-0.13.md) |
 
 - [2026-09-12: 0.14 corrections and validation for external findings F1–F5 / D1](audits/2026-09-12-0.14.md).
 - [2026-09-12: 0.13 fixes and validation, including historical 0.12-rc1/rc2 audits](audits/2026-09-12-0.13.md). Artifact hashes, test counts, pending work at that time, and third-party rights boundaries remain in that record.

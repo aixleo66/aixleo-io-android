@@ -1,8 +1,10 @@
-# 非商业研究许可与适用范围
+# 文档导航：许可范围 / Licensing
 
-文档已按语言整理，默认阅读中文版。此入口保留原有链接。
+> 本页仅保留旧路径入口，不维护另一份正文。请阅读下方的当前文档；本页最后修改时间不代表正文的更新日期。
 
-- [简体中文](cn/LICENSING.md)
-- [English](en/LICENSING.md)
+- **[简体中文正文](cn/LICENSING.md)**
+- **[English documentation](en/LICENSING.md)**
 
-Documentation is organized by language. Chinese is the default; this entry preserves existing links.
+This page preserves an existing link. It contains no separate guide; use the current documentation above. Its last-modified date is not the update date of those documents.
+
+[全部中文文档](cn/README.md) · [All English documentation](en/README.md)
